@@ -1,0 +1,112 @@
+@theme {
+  --font-serif: "Recoleta", Georgia, "Times New Roman", serif;
+  --font-sans: "TTNormsPro", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --text-m: 1rem;
+  --text-m--line-height: 1.5rem;
+
+  --color-*: initial;
+
+  --color-primary-100: #f5fbf4;
+  --color-primary-200: #edf5eb;
+  --color-primary-300: #c9dacc;
+  --color-primary-400: #91a693;
+  --color-primary-500: #516253;
+  --color-primary-600: #2e382f;
+
+  --color-rose-100: #fff7f7;
+  --color-rose-200: #f7eeed;
+  --color-rose-300: #eac5c3;
+  --color-rose-400: #da918b;
+  --color-rose-500: #be6b65;
+  --color-rose-600: #853d38;
+
+  --color-beige-100: #fefcf6;
+  --color-beige-200: #f6f3ea;
+  --color-beige-300: #f0decb;
+  --color-beige-400: #c4a57e;
+  --color-beige-500: #96714f;
+  --color-beige-600: #543f2c;
+
+  --color-blue-100: #f5fbfe;
+  --color-blue-200: #f1f6f9;
+  --color-blue-300: #cedde3;
+  --color-blue-400: #587684;
+  --color-blue-500: #223d49;
+  --color-blue-600: #182c34;
+
+  --color-purple-100: #fbfaff;
+  --color-purple-200: #f3f1fa;
+  --color-purple-300: #d2cce5;
+  --color-purple-400: #aa9dcd;
+  --color-purple-500: #8467d7;
+  --color-purple-600: #412f74;
+
+  --color-peach-100: #f9e7d7;
+  --color-peach-200: #edccae;
+  --color-peach-300: #f4ca9a;
+  --color-peach-400: #edac94;
+  --color-peach-500: #f0766f;
+  --color-peach-600: #e77972;
+
+  --color-green-100: #b9d2a8;
+  --color-green-200: #8ee6b4;
+  --color-green-300: #56cd89;
+  --color-green-400: #27ae60;
+  --color-green-500: #1e854a;
+  --color-green-600: #145d32;
+
+  --color-red-100: #fff7f7;
+  --color-red-200: #fbc8bd;
+  --color-red-300: #f46957;
+  --color-red-400: #f13f28;
+  --color-red-500: #d7250e;
+  --color-red-600: #7c1508;
+
+  --color-yellow-100: #fff7eb;
+  --color-yellow-200: #fcebcf;
+  --color-yellow-300: #f2c988;
+  --color-yellow-400: #ecae52;
+  --color-yellow-500: #d38b17;
+  --color-yellow-600: #774f0d;
+
+  --color-white: #ffffff;
+  --color-black: #212121;
+
+  --color-black-100: var(--color-black);
+  --color-black-200: var(--color-black);
+  --color-black-300: var(--color-black);
+  --color-black-400: var(--color-black);
+  --color-black-500: var(--color-black);
+  --color-black-600: var(--color-black);
+
+  --color-white-100: var(--color-white);
+  --color-white-200: var(--color-white);
+  --color-white-300: var(--color-white);
+  --color-white-400: var(--color-white);
+  --color-white-500: var(--color-white);
+  --color-white-600: var(--color-white);
+
+  --color-grey-100: #fefdfc;
+  --color-grey-200: #f2f2f2;
+  --color-grey-300: #dedede;
+  --color-grey-400: #adadad;
+  --color-grey-500: #464646;
+  --color-grey-600: var(--color-black);
+
+  --color-focus: #412f74;
+
+  --background-image-peach: linear-gradient(
+    267deg,
+    var(--color-peach-200),
+    var(--color-peach-500)
+  );
+
+  --shadow-xs: 2px 3px 3px rgb(0 0 0 / 0.03);
+  --shadow-sm: 2px 4px 18px rgb(0 0 0 / 0.05);
+  --shadow-md: 0 3px 8px rgb(0 0 0 / 0.12);
+  --shadow-lg: 0 7px 18px rgb(0 0 0 / 0.2);
+  --shadow-xl: 0 10px 24px rgb(0 0 0 / 0.1);
+}
+
