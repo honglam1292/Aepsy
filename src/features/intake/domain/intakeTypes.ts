@@ -3,11 +3,64 @@ export interface TopicSuggestion {
   readonly label: string;
 }
 
+export interface CompletedRecording {
+  readonly recordingId: string;
+  readonly mimeType: string;
+  readonly byteSize: number;
+  readonly durationMs: number;
+}
+
+export type RecordingFailureReason =
+  | "permissionDenied"
+  | "microphoneNotFound"
+  | "microphoneUnavailable"
+  | "emptyRecording"
+  | "recorderError";
+
+export type RecordingInterruptionReason =
+  | "microphoneEnded"
+  | "browserInterrupted"
+  | "navigation";
+
 export type RecordingState =
-  | { readonly status: "notRecorded" }
+  | { readonly status: "idle" }
   | {
-      readonly status: "completed";
-      readonly recordingId: string;
+      readonly status: "requestingPermission";
+      readonly attemptId: string;
+      readonly previousRecording: CompletedRecording | null;
+    }
+  | {
+      readonly status: "recording";
+      readonly attemptId: string;
+      readonly startedAtEpochMs: number;
+      readonly previousRecording: CompletedRecording | null;
+    }
+  | {
+      readonly status: "stopping";
+      readonly attemptId: string;
+      readonly startedAtEpochMs: number;
+      readonly previousRecording: CompletedRecording | null;
+    }
+  | {
+      readonly status: "recorded";
+      readonly recording: CompletedRecording;
+    }
+  | {
+      readonly status: "interrupted";
+      readonly attemptId: string;
+      readonly reason: RecordingInterruptionReason;
+      readonly previousRecording: CompletedRecording | null;
+    }
+  | {
+      readonly status: "unsupported";
+      readonly attemptId: string;
+      readonly previousRecording: CompletedRecording | null;
+    }
+  | {
+      readonly status: "error";
+      readonly attemptId: string;
+      readonly reason: RecordingFailureReason;
+      readonly previousRecording: CompletedRecording | null;
     };
 
 export type TopicsState =
@@ -34,12 +87,45 @@ export interface IntakeWorkflowState {
 
 export type IntakeWorkflowEvent =
   | {
+      readonly type: "recordingStartRequested";
+      readonly attemptId: string;
+    }
+  | {
+      readonly type: "recordingStarted";
+      readonly attemptId: string;
+      readonly startedAtEpochMs: number;
+    }
+  | {
+      readonly type: "recordingStopRequested";
+      readonly attemptId: string;
+    }
+  | {
       readonly type: "recordingCompleted";
-      readonly recordingId: string;
+      readonly attemptId: string;
+      readonly recording: CompletedRecording;
     }
   | {
       readonly type: "recordingReplaced";
-      readonly recordingId: string;
+      readonly attemptId: string;
+      readonly recording: CompletedRecording;
+    }
+  | {
+      readonly type: "recordingInterrupted";
+      readonly attemptId: string;
+      readonly reason: RecordingInterruptionReason;
+    }
+  | {
+      readonly type: "recordingUnsupported";
+      readonly attemptId: string;
+    }
+  | {
+      readonly type: "recordingFailed";
+      readonly attemptId: string;
+      readonly reason: RecordingFailureReason;
+    }
+  | {
+      readonly type: "recordingCancelled";
+      readonly attemptId: string;
     }
   | {
       readonly type: "topicsProcessed";
@@ -51,4 +137,3 @@ export type IntakeWorkflowEvent =
       readonly selectedTopicValues: readonly string[];
     }
   | { readonly type: "progressCleared" };
-

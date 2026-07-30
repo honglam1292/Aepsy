@@ -1,7 +1,9 @@
 import type {
+  CompletedRecording,
   IntakeWorkflowEvent,
   IntakeWorkflowState,
   ProviderSearchState,
+  RecordingState,
   TopicSuggestion,
 } from "./intakeTypes";
 
@@ -10,17 +12,81 @@ const unavailableProviderSearch: ProviderSearchState = {
 };
 
 export const initialIntakeWorkflowState: IntakeWorkflowState = {
-  recording: { status: "notRecorded" },
+  recording: { status: "idle" },
   topics: { status: "unavailable" },
   providerSearch: unavailableProviderSearch,
 };
 
-function replaceRecording(recordingId: string): IntakeWorkflowState {
+function commitRecording(
+  state: IntakeWorkflowState,
+  recording: CompletedRecording,
+): IntakeWorkflowState {
   return {
-    recording: { status: "completed", recordingId },
+    ...state,
+    recording: { status: "recorded", recording },
     topics: { status: "unavailable" },
     providerSearch: unavailableProviderSearch,
   };
+}
+
+export function getCommittedRecording(
+  recording: RecordingState,
+): CompletedRecording | null {
+  switch (recording.status) {
+    case "idle":
+      return null;
+
+    case "recorded":
+      return recording.recording;
+
+    case "requestingPermission":
+    case "recording":
+    case "stopping":
+    case "interrupted":
+    case "unsupported":
+    case "error":
+      return recording.previousRecording;
+
+    default:
+      return assertNever(recording);
+  }
+}
+
+function isMatchingActiveAttempt(
+  recording: RecordingState,
+  attemptId: string,
+): recording is Extract<
+  RecordingState,
+  { readonly status: "requestingPermission" | "recording" | "stopping" }
+> {
+  return (
+    (recording.status === "requestingPermission" ||
+      recording.status === "recording" ||
+      recording.status === "stopping") &&
+    recording.attemptId === attemptId
+  );
+}
+
+function canApplyFailure(
+  recording: Extract<
+    RecordingState,
+    { readonly status: "requestingPermission" | "recording" | "stopping" }
+  >,
+  reason: Extract<
+    IntakeWorkflowEvent,
+    { readonly type: "recordingFailed" }
+  >["reason"],
+): boolean {
+  switch (recording.status) {
+    case "requestingPermission":
+      return reason !== "emptyRecording";
+    case "recording":
+      return reason === "recorderError";
+    case "stopping":
+      return reason === "emptyRecording" || reason === "recorderError";
+    default:
+      return assertNever(recording);
+  }
 }
 
 function getCanonicalSelection(
@@ -51,9 +117,9 @@ function selectionsMatch(
   );
 }
 
-function assertNever(_event: never): never {
-  void _event;
-  throw new Error("Unhandled intake workflow event.");
+function assertNever(unhandledValue: never): never {
+  void unhandledValue;
+  throw new Error("Unhandled intake workflow value.");
 }
 
 export function intakeWorkflowReducer(
@@ -61,14 +127,156 @@ export function intakeWorkflowReducer(
   event: IntakeWorkflowEvent,
 ): IntakeWorkflowState {
   switch (event.type) {
+    case "recordingStartRequested": {
+      if (
+        state.recording.status === "requestingPermission" ||
+        state.recording.status === "recording" ||
+        state.recording.status === "stopping"
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        recording: {
+          status: "requestingPermission",
+          attemptId: event.attemptId,
+          previousRecording: getCommittedRecording(state.recording),
+        },
+      };
+    }
+
+    case "recordingStarted":
+      if (
+        state.recording.status !== "requestingPermission" ||
+        state.recording.attemptId !== event.attemptId
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        recording: {
+          status: "recording",
+          attemptId: event.attemptId,
+          startedAtEpochMs: event.startedAtEpochMs,
+          previousRecording: state.recording.previousRecording,
+        },
+      };
+
+    case "recordingStopRequested":
+      if (
+        state.recording.status !== "recording" ||
+        state.recording.attemptId !== event.attemptId
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        recording: {
+          status: "stopping",
+          attemptId: event.attemptId,
+          startedAtEpochMs: state.recording.startedAtEpochMs,
+          previousRecording: state.recording.previousRecording,
+        },
+      };
+
     case "recordingCompleted":
+      if (
+        state.recording.status !== "stopping" ||
+        state.recording.attemptId !== event.attemptId ||
+        state.recording.previousRecording !== null
+      ) {
+        return state;
+      }
+
+      return commitRecording(state, event.recording);
+
     case "recordingReplaced":
-      return replaceRecording(event.recordingId);
+      if (
+        state.recording.status !== "stopping" ||
+        state.recording.attemptId !== event.attemptId ||
+        state.recording.previousRecording === null
+      ) {
+        return state;
+      }
+
+      return commitRecording(state, event.recording);
+
+    case "recordingInterrupted":
+      if (
+        !isMatchingActiveAttempt(state.recording, event.attemptId) ||
+        (state.recording.status === "requestingPermission" &&
+          event.reason !== "navigation")
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        recording: {
+          status: "interrupted",
+          attemptId: event.attemptId,
+          reason: event.reason,
+          previousRecording: state.recording.previousRecording,
+        },
+      };
+
+    case "recordingUnsupported":
+      if (
+        state.recording.status !== "requestingPermission" ||
+        state.recording.attemptId !== event.attemptId
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        recording: {
+          status: "unsupported",
+          attemptId: event.attemptId,
+          previousRecording: state.recording.previousRecording,
+        },
+      };
+
+    case "recordingFailed":
+      if (
+        !isMatchingActiveAttempt(state.recording, event.attemptId) ||
+        !canApplyFailure(state.recording, event.reason)
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        recording: {
+          status: "error",
+          attemptId: event.attemptId,
+          reason: event.reason,
+          previousRecording: state.recording.previousRecording,
+        },
+      };
+
+    case "recordingCancelled":
+      if (!isMatchingActiveAttempt(state.recording, event.attemptId)) {
+        return state;
+      }
+
+      return {
+        ...state,
+        recording: {
+          status: "interrupted",
+          attemptId: event.attemptId,
+          reason: "navigation",
+          previousRecording: state.recording.previousRecording,
+        },
+      };
 
     case "topicsProcessed":
       if (
-        state.recording.status !== "completed" ||
-        state.recording.recordingId !== event.sourceRecordingId
+        getCommittedRecording(state.recording)?.recordingId !==
+        event.sourceRecordingId
       ) {
         return state;
       }
