@@ -1,6 +1,10 @@
 import type { ReactElement } from "react";
 import { Link, Outlet } from "react-router";
 
+import {
+  PersistenceStatus,
+  StartOverControl,
+} from "../../features/intake/presentation/IntakeProgressActions";
 import { ProgressIndicator } from "./ProgressIndicator";
 
 export function AppShell(): ReactElement {
@@ -22,14 +26,18 @@ export function AppShell(): ReactElement {
           >
             aepsy
           </Link>
-          <p className="hidden text-right text-sm leading-5 text-primary-500 sm:block">
-            Find support that feels right for you
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="hidden text-right text-sm leading-5 text-primary-500 md:block">
+              Find support that feels right for you
+            </p>
+            <StartOverControl />
+          </div>
         </div>
       </header>
 
       <div className="mx-auto w-full max-w-5xl px-5 py-7 sm:px-8 sm:py-10">
         <ProgressIndicator />
+        <PersistenceStatus />
         <main
           className="mt-7 min-h-80 rounded-3xl bg-white p-6 shadow-sm sm:mt-9 sm:p-10 lg:p-12"
           id="main-content"

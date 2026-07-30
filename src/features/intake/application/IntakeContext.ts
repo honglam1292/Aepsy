@@ -8,6 +8,7 @@ import type {
 export interface IntakeContextValue {
   readonly state: IntakeWorkflowState;
   readonly dispatch: Dispatch<IntakeWorkflowEvent>;
+  getState(): IntakeWorkflowState;
 }
 
 export const IntakeContext = createContext<IntakeContextValue | null>(null);

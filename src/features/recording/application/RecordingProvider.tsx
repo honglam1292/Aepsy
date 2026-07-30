@@ -8,6 +8,7 @@ import {
 } from "react";
 
 import { useIntakeWorkflow } from "../../intake/application/useIntakeWorkflow";
+import { useIntakePersistence } from "../../intake/application/useIntakePersistence";
 import { getCommittedRecording } from "../../intake/domain/intakeReducer";
 import type {
   RecordingFailureReason,
@@ -19,7 +20,6 @@ import {
   type RecordingController,
 } from "./RecordingContext";
 import type {
-  AudioObjectUrlAdapter,
   RecordingAdapter,
   RecordingSession,
   RecordingSessionResult,
@@ -29,7 +29,6 @@ import type {
 interface RecordingProviderProps {
   readonly children: ReactNode;
   readonly adapter: RecordingAdapter;
-  readonly objectUrlAdapter: AudioObjectUrlAdapter;
   readonly now?: () => number;
 }
 
@@ -110,16 +109,13 @@ function assertNever(unhandledValue: never): never {
 export function RecordingProvider({
   children,
   adapter,
-  objectUrlAdapter,
   now = getCurrentEpochMilliseconds,
 }: RecordingProviderProps): ReactElement {
   const { state, dispatch } = useIntakeWorkflow();
-  const [audioObjectUrl, setAudioObjectUrl] = useState<string | null>(null);
+  const persistence = useIntakePersistence();
   const [elapsedMilliseconds, setElapsedMilliseconds] = useState(0);
   const activeAttemptRef = useRef<ActiveAttempt | null>(null);
   const attemptSequenceRef = useRef(0);
-  const committedAudioRef = useRef<Blob | null>(null);
-  const objectUrlRef = useRef<string | null>(null);
   const elapsedTimerRef = useRef<
     ReturnType<typeof globalThis.setInterval> | null
   >(null);
@@ -131,17 +127,6 @@ export function RecordingProvider({
       elapsedTimerRef.current = null;
     }
   }, []);
-
-  const revokeObjectUrl = useCallback(
-    (objectUrl: string): void => {
-      try {
-        objectUrlAdapter.revoke(objectUrl);
-      } catch {
-        // Revocation is best-effort once the URL is no longer referenced.
-      }
-    },
-    [objectUrlAdapter],
-  );
 
   const failAttemptUnexpectedly = (
     attempt: ActiveAttempt,
@@ -163,10 +148,10 @@ export function RecordingProvider({
     });
   };
 
-  const finishAttempt = (
+  const finishAttempt = async (
     attempt: ActiveAttempt,
     result: RecordingSessionResult,
-  ): void => {
+  ): Promise<void> => {
     if (
       !isMountedRef.current ||
       activeAttemptRef.current !== attempt
@@ -174,25 +159,10 @@ export function RecordingProvider({
       return;
     }
 
-    activeAttemptRef.current = null;
     stopElapsedTimer();
 
     switch (result.status) {
       case "recorded": {
-        let nextObjectUrl: string;
-
-        try {
-          nextObjectUrl = objectUrlAdapter.create(result.audio.blob);
-        } catch {
-          dispatch({
-            type: "recordingFailed",
-            attemptId: attempt.attemptId,
-            reason: "recorderError",
-          });
-          return;
-        }
-
-        const previousObjectUrl = objectUrlRef.current;
         const startedAtEpochMs = attempt.startedAtEpochMs ?? now();
         const stoppedAtEpochMs = attempt.stoppedAtEpochMs ?? now();
         const recording = {
@@ -202,27 +172,39 @@ export function RecordingProvider({
           durationMs: Math.max(0, stoppedAtEpochMs - startedAtEpochMs),
         };
 
-        committedAudioRef.current = result.audio.blob;
-        objectUrlRef.current = nextObjectUrl;
-        setAudioObjectUrl(nextObjectUrl);
-        dispatch({
-          type: attempt.isReplacement
-            ? "recordingReplaced"
-            : "recordingCompleted",
-          attemptId: attempt.attemptId,
-          recording,
-        });
+        let commitResult;
+        try {
+          commitResult = await persistence.completeRecording({
+            attemptId: attempt.attemptId,
+            isReplacement: attempt.isReplacement,
+            recording,
+            audioBlob: result.audio.blob,
+          });
+        } catch {
+          failAttemptUnexpectedly(attempt);
+          return;
+        }
 
         if (
-          previousObjectUrl !== null &&
-          previousObjectUrl !== nextObjectUrl
+          !isMountedRef.current ||
+          activeAttemptRef.current !== attempt
         ) {
-          revokeObjectUrl(previousObjectUrl);
+          return;
+        }
+
+        activeAttemptRef.current = null;
+        if (commitResult !== "completed") {
+          dispatch({
+            type: "recordingFailed",
+            attemptId: attempt.attemptId,
+            reason: "recorderError",
+          });
         }
         return;
       }
 
       case "empty":
+        activeAttemptRef.current = null;
         dispatch({
           type: "recordingFailed",
           attemptId: attempt.attemptId,
@@ -231,6 +213,7 @@ export function RecordingProvider({
         return;
 
       case "interrupted":
+        activeAttemptRef.current = null;
         dispatch({
           type: "recordingInterrupted",
           attemptId: attempt.attemptId,
@@ -239,6 +222,7 @@ export function RecordingProvider({
         return;
 
       case "error":
+        activeAttemptRef.current = null;
         dispatch({
           type: "recordingFailed",
           attemptId: attempt.attemptId,
@@ -247,6 +231,7 @@ export function RecordingProvider({
         return;
 
       case "cancelled":
+        activeAttemptRef.current = null;
         dispatch({
           type: "recordingCancelled",
           attemptId: attempt.attemptId,
@@ -259,14 +244,24 @@ export function RecordingProvider({
   };
 
   const beginRecording = async (): Promise<void> => {
-    if (activeAttemptRef.current !== null) {
+    if (
+      activeAttemptRef.current !== null ||
+      persistence.hydration.status !== "ready" ||
+      persistence.isClearingProgress
+    ) {
       return;
     }
 
-    attemptSequenceRef.current += 1;
+    const committedRecording = getCommittedRecording(state.recording);
+    let attemptId: string;
+    do {
+      attemptSequenceRef.current += 1;
+      attemptId = `recording-${attemptSequenceRef.current}`;
+    } while (attemptId === committedRecording?.recordingId);
+
     const attempt: ActiveAttempt = {
-      attemptId: `recording-${attemptSequenceRef.current}`,
-      isReplacement: getCommittedRecording(state.recording) !== null,
+      attemptId,
+      isReplacement: committedRecording !== null,
       session: null,
       startedAtEpochMs: null,
       stoppedAtEpochMs: null,
@@ -349,7 +344,9 @@ export function RecordingProvider({
     }, 250);
 
     void startResult.session.completion.then(
-      (result) => finishAttempt(attempt, result),
+      (result) => {
+        void finishAttempt(attempt, result);
+      },
       () => failAttemptUnexpectedly(attempt),
     );
   };
@@ -393,7 +390,7 @@ export function RecordingProvider({
 
   const cancelActiveRecording = useCallback((): void => {
     const attempt = activeAttemptRef.current;
-    if (attempt === null) {
+    if (attempt === null || attempt.isStopRequested) {
       return;
     }
 
@@ -406,20 +403,31 @@ export function RecordingProvider({
     });
   }, [dispatch, stopElapsedTimer]);
 
+  const clearProgress = async (): Promise<void> => {
+    const attempt = activeAttemptRef.current;
+    if (attempt !== null) {
+      activeAttemptRef.current = null;
+      stopElapsedTimer();
+      cancelSession(attempt.session);
+    }
+
+    await persistence.clearProgress();
+    setElapsedMilliseconds(0);
+  };
+
   useEffect(() => {
     isMountedRef.current = true;
 
     return () => {
       isMountedRef.current = false;
-      cancelActiveRecording();
-
-      if (objectUrlRef.current !== null) {
-        revokeObjectUrl(objectUrlRef.current);
-        objectUrlRef.current = null;
+      const attempt = activeAttemptRef.current;
+      if (attempt !== null) {
+        activeAttemptRef.current = null;
+        stopElapsedTimer();
+        cancelSession(attempt.session);
       }
-      committedAudioRef.current = null;
     };
-  }, [cancelActiveRecording, revokeObjectUrl]);
+  }, [stopElapsedTimer]);
 
   useEffect(() => {
     if (state.recording.status !== "idle") {
@@ -432,29 +440,29 @@ export function RecordingProvider({
       stopElapsedTimer();
       cancelSession(staleAttempt.session);
     }
-
-    const staleObjectUrl = objectUrlRef.current;
-    if (staleObjectUrl !== null) {
-      objectUrlRef.current = null;
-      committedAudioRef.current = null;
-      setAudioObjectUrl(null);
-      revokeObjectUrl(staleObjectUrl);
-    }
-  }, [revokeObjectUrl, state.recording.status, stopElapsedTimer]);
+  }, [state.recording.status, stopElapsedTimer]);
 
   const hasActiveAttempt = isActiveLifecycle(state.recording.status);
   const canContinue =
     getCommittedRecording(state.recording) !== null &&
-    audioObjectUrl !== null &&
+    persistence.audioObjectUrl !== null &&
     !hasActiveAttempt;
+  const hasProgress =
+    state.recording.status !== "idle" ||
+    state.topics.status !== "unavailable" ||
+    state.providerSearch.status !== "unavailable" ||
+    persistence.audioObjectUrl !== null;
   const controller: RecordingController = {
     lifecycle: state.recording,
-    audioObjectUrl,
+    audioObjectUrl: persistence.audioObjectUrl,
     elapsedMilliseconds,
     canContinue,
+    hasProgress,
+    isClearingProgress: persistence.isClearingProgress,
     startRecording,
     stopRecording,
     cancelActiveRecording,
+    clearProgress,
   };
 
   return (

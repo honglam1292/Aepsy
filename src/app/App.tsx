@@ -2,28 +2,52 @@ import { ApolloProvider } from "@apollo/client/react";
 import type { ReactElement } from "react";
 import { BrowserRouter } from "react-router";
 
+import { IntakePersistenceProvider } from "../features/intake/application/IntakePersistenceProvider";
 import { IntakeProvider } from "../features/intake/application/IntakeProvider";
+import type { IntakeMetadataRepository } from "../features/intake/application/intakePersistence";
+import { localStorageIntakeMetadataRepository } from "../features/intake/infrastructure/localStorageIntakeMetadataRepository";
 import { RecordingProvider } from "../features/recording/application/RecordingProvider";
+import type {
+  AudioObjectUrlAdapter,
+  RecordingAdapter,
+} from "../features/recording/application/recordingAdapter";
+import type { RecordingAudioRepository } from "../features/recording/application/recordingAudioRepository";
 import { browserAudioObjectUrlAdapter } from "../features/recording/infrastructure/browserAudioObjectUrlAdapter";
 import { browserRecordingAdapter } from "../features/recording/infrastructure/browserRecordingAdapter";
+import { indexedDbRecordingAudioRepository } from "../features/recording/infrastructure/indexedDbRecordingAudioRepository";
 import { apolloClient } from "./apolloClient";
 import { AppErrorBoundary } from "./AppErrorBoundary";
 import { AppRoutes } from "./AppRoutes";
 
-export function App(): ReactElement {
+interface AppProps {
+  readonly audioRepository?: RecordingAudioRepository;
+  readonly metadataRepository?: IntakeMetadataRepository;
+  readonly objectUrlAdapter?: AudioObjectUrlAdapter;
+  readonly recordingAdapter?: RecordingAdapter;
+}
+
+export function App({
+  audioRepository = indexedDbRecordingAudioRepository,
+  metadataRepository = localStorageIntakeMetadataRepository,
+  objectUrlAdapter = browserAudioObjectUrlAdapter,
+  recordingAdapter = browserRecordingAdapter,
+}: AppProps = {}): ReactElement {
   return (
     <AppErrorBoundary>
       <ApolloProvider client={apolloClient}>
-        <IntakeProvider>
-          <RecordingProvider
-            adapter={browserRecordingAdapter}
-            objectUrlAdapter={browserAudioObjectUrlAdapter}
-          >
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </RecordingProvider>
-        </IntakeProvider>
+        <BrowserRouter>
+          <IntakeProvider>
+            <IntakePersistenceProvider
+              audioRepository={audioRepository}
+              metadataRepository={metadataRepository}
+              objectUrlAdapter={objectUrlAdapter}
+            >
+              <RecordingProvider adapter={recordingAdapter}>
+                <AppRoutes />
+              </RecordingProvider>
+            </IntakePersistenceProvider>
+          </IntakeProvider>
+        </BrowserRouter>
       </ApolloProvider>
     </AppErrorBoundary>
   );

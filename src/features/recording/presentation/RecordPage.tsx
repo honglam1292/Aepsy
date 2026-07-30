@@ -7,7 +7,6 @@ import { useNavigate } from "react-router";
 
 import type {
   RecordingFailureReason,
-  RecordingInterruptionReason,
   RecordingState,
 } from "../../intake/domain/intakeTypes";
 import type { RecordingController } from "../application/RecordingContext";
@@ -54,17 +53,25 @@ function getRecordingErrorMessage(reason: RecordingFailureReason): string {
 }
 
 function getInterruptionMessage(
-  reason: RecordingInterruptionReason,
+  lifecycle: Extract<RecordingState, { readonly status: "interrupted" }>,
 ): string {
-  switch (reason) {
+  switch (lifecycle.reason) {
     case "microphoneEnded":
       return "The microphone became unavailable, so this recording wasn’t saved. Check the connection and try again.";
     case "browserInterrupted":
       return "The browser stopped the recording before it was ready. Please try again.";
     case "navigation":
       return "The recording stopped when you left this step and wasn’t saved. Start again when you’re ready.";
+    case "browserReload":
+      return lifecycle.previousRecording === null
+        ? "Your recording stopped when this page closed and wasn’t saved. Record again when you’re ready."
+        : "Your new recording stopped when this page closed and wasn’t saved. Your previous voice note is still available.";
+    case "storedAudioMissing":
+      return "We couldn’t find your saved voice note in this browser. Record a new one to continue.";
+    case "storedAudioUnavailable":
+      return "We couldn’t reopen your saved voice note. Record a new one when you’re ready.";
     default:
-      return assertNever(reason);
+      return assertNever(lifecycle.reason);
   }
 }
 
@@ -114,7 +121,7 @@ function getRecordingStatusCopy(
     case "interrupted":
       return {
         title: "Recording interrupted",
-        message: getInterruptionMessage(lifecycle.reason),
+        message: getInterruptionMessage(lifecycle),
         isAlert: true,
       };
     case "unsupported":
@@ -169,7 +176,12 @@ function getRecordAction(lifecycle: RecordingState): RecordAction | null {
       };
     case "interrupted":
       return {
-        label: "Start again",
+        label:
+          lifecycle.reason === "browserReload" ||
+          lifecycle.reason === "storedAudioMissing" ||
+          lifecycle.reason === "storedAudioUnavailable"
+            ? "Record again"
+            : "Start again",
         isDisabled: false,
         intent: "start",
       };
@@ -341,6 +353,7 @@ export function RecordPage(): ReactElement {
       <h1
         className="mt-3 max-w-3xl font-serif text-4xl leading-tight text-primary-600 sm:text-5xl"
         id="record-title"
+        tabIndex={-1}
       >
         Tell us what’s on your mind
       </h1>
@@ -358,8 +371,9 @@ export function RecordPage(): ReactElement {
           for permission only after you choose Start recording.
         </p>
         <p className="mt-2 leading-7 text-grey-500">
-          Your audio stays in this browser for the current intake flow. It isn’t
-          sent or analysed in this step.
+          Your completed audio stays in this browser for this intake; if it
+          won’t survive a refresh, we’ll tell you. It isn’t sent or analysed in
+          this step, and you can remove it by starting over.
         </p>
       </aside>
 

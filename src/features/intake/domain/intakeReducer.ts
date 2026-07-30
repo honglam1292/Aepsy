@@ -4,6 +4,7 @@ import type {
   IntakeWorkflowState,
   ProviderSearchState,
   RecordingState,
+  TopicsState,
   TopicSuggestion,
 } from "./intakeTypes";
 
@@ -89,6 +90,31 @@ function canApplyFailure(
   }
 }
 
+function canApplyInterruption(
+  recording: Extract<
+    RecordingState,
+    { readonly status: "requestingPermission" | "recording" | "stopping" }
+  >,
+  reason: Extract<
+    IntakeWorkflowEvent,
+    { readonly type: "recordingInterrupted" }
+  >["reason"],
+): boolean {
+  switch (recording.status) {
+    case "requestingPermission":
+      return reason === "navigation";
+    case "recording":
+    case "stopping":
+      return (
+        reason === "microphoneEnded" ||
+        reason === "browserInterrupted" ||
+        reason === "navigation"
+      );
+    default:
+      return assertNever(recording);
+  }
+}
+
 function getCanonicalSelection(
   suggestions: readonly TopicSuggestion[],
   requestedTopicValues: readonly string[],
@@ -115,6 +141,57 @@ function selectionsMatch(
       (topicValue, index) => topicValue === nextSelection[index],
     )
   );
+}
+
+function deriveProviderSearch(
+  selectedTopicValues: readonly string[],
+): ProviderSearchState {
+  return selectedTopicValues.length === 0
+    ? unavailableProviderSearch
+    : { status: "notStarted", selectedTopicValues };
+}
+
+function hydrateWorkflow(
+  recording: RecordingState,
+  topics: TopicsState,
+): IntakeWorkflowState {
+  const hydratedRecording =
+    recording.status === "interrupted" &&
+    (recording.reason === "storedAudioMissing" ||
+      recording.reason === "storedAudioUnavailable") &&
+    recording.previousRecording !== null
+      ? { ...recording, previousRecording: null }
+      : recording;
+  const committedRecording = getCommittedRecording(hydratedRecording);
+
+  if (
+    committedRecording === null ||
+    topics.status !== "processed" ||
+    topics.sourceRecordingId !== committedRecording.recordingId
+  ) {
+    return {
+      recording: hydratedRecording,
+      topics: { status: "unavailable" },
+      providerSearch: unavailableProviderSearch,
+    };
+  }
+
+  const selectedTopicValues = getCanonicalSelection(
+    topics.suggestions,
+    topics.selectedTopicValues,
+  );
+  const hydratedTopics = selectionsMatch(
+    topics.selectedTopicValues,
+    selectedTopicValues,
+  )
+    ? topics
+    : { ...topics, selectedTopicValues };
+
+  return {
+    recording: hydratedRecording,
+    topics: hydratedTopics,
+    providerSearch: deriveProviderSearch(selectedTopicValues),
+  };
 }
 
 function assertNever(unhandledValue: never): never {
@@ -207,8 +284,7 @@ export function intakeWorkflowReducer(
     case "recordingInterrupted":
       if (
         !isMatchingActiveAttempt(state.recording, event.attemptId) ||
-        (state.recording.status === "requestingPermission" &&
-          event.reason !== "navigation")
+        !canApplyInterruption(state.recording, event.reason)
       ) {
         return state;
       }
@@ -317,12 +393,12 @@ export function intakeWorkflowReducer(
           ...state.topics,
           selectedTopicValues,
         },
-        providerSearch:
-          selectedTopicValues.length === 0
-            ? unavailableProviderSearch
-            : { status: "notStarted", selectedTopicValues },
+        providerSearch: deriveProviderSearch(selectedTopicValues),
       };
     }
+
+    case "workflowHydrated":
+      return hydrateWorkflow(event.recording, event.topics);
 
     case "progressCleared":
       return initialIntakeWorkflowState;

@@ -7,9 +7,12 @@ export interface RecordingController {
   readonly audioObjectUrl: string | null;
   readonly elapsedMilliseconds: number;
   readonly canContinue: boolean;
+  readonly hasProgress: boolean;
+  readonly isClearingProgress: boolean;
   startRecording(): void;
   stopRecording(): void;
   cancelActiveRecording(): void;
+  clearProgress(): Promise<void>;
 }
 
 export const RecordingContext = createContext<RecordingController | null>(null);

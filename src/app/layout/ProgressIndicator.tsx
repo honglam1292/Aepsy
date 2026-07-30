@@ -1,23 +1,26 @@
 import type { ReactElement } from "react";
 import { Link, matchPath, useLocation } from "react-router";
 
-import { useRecording } from "../../features/recording/application/useRecording";
+import { useIntakeWorkflow } from "../../features/intake/application/useIntakeWorkflow";
+import { canAccessIntakeStep } from "../../features/intake/domain/intakeProgress";
+import type { IntakeStep } from "../../features/intake/domain/intakeProgress";
 
-interface IntakeStep {
+interface IntakeStepItem {
   readonly label: string;
   readonly path: string;
+  readonly step: IntakeStep;
   readonly stepNumber: number;
 }
 
-const intakeSteps: readonly IntakeStep[] = [
-  { label: "Record", path: "/record", stepNumber: 1 },
-  { label: "Topics", path: "/topics", stepNumber: 2 },
-  { label: "Matches", path: "/matches", stepNumber: 3 },
+const intakeSteps: readonly IntakeStepItem[] = [
+  { label: "Record", path: "/record", step: "record", stepNumber: 1 },
+  { label: "Topics", path: "/topics", step: "topics", stepNumber: 2 },
+  { label: "Matches", path: "/matches", step: "matches", stepNumber: 3 },
 ];
 
 export function ProgressIndicator(): ReactElement {
   const { pathname } = useLocation();
-  const { canContinue } = useRecording();
+  const { state } = useIntakeWorkflow();
   const currentStep = intakeSteps.find(
     (step) => matchPath({ path: step.path, end: true }, pathname) !== null,
   );
@@ -31,7 +34,7 @@ export function ProgressIndicator(): ReactElement {
       </p>
       <ol className="grid grid-cols-3 gap-2 sm:gap-4">
         {intakeSteps.map((step) => {
-          const isAvailable = step.stepNumber === 1 || canContinue;
+          const isAvailable = canAccessIntakeStep(state, step.step);
           const isCurrentStep =
             isAvailable && step.path === currentStep?.path;
           const stepContent = (
@@ -87,7 +90,9 @@ export function ProgressIndicator(): ReactElement {
                   </span>
                   {stepContent}
                   <span className="sr-only">
-                    until your voice note is ready
+                    {step.step === "topics"
+                      ? "until your voice note is ready"
+                      : "until you select at least one topic"}
                   </span>
                 </span>
               )}

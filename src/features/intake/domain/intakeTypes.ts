@@ -20,7 +20,10 @@ export type RecordingFailureReason =
 export type RecordingInterruptionReason =
   | "microphoneEnded"
   | "browserInterrupted"
-  | "navigation";
+  | "navigation"
+  | "browserReload"
+  | "storedAudioMissing"
+  | "storedAudioUnavailable";
 
 export type RecordingState =
   | { readonly status: "idle" }
@@ -135,5 +138,10 @@ export type IntakeWorkflowEvent =
   | {
       readonly type: "topicSelectionChanged";
       readonly selectedTopicValues: readonly string[];
+    }
+  | {
+      readonly type: "workflowHydrated";
+      readonly recording: RecordingState;
+      readonly topics: TopicsState;
     }
   | { readonly type: "progressCleared" };
