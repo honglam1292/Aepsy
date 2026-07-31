@@ -116,6 +116,11 @@ Recorded audio is not uploaded by this implementation. Recording and mocked topi
 
 Audio contents, selected mental-health topics, and provider personal data are not written to console logs. Browser-local storage is not described as encrypted and may be unavailable or cleared by the browser. **Start over** attempts to remove all locally persisted intake progress and reports incomplete cleanup.
 
+## Deployment
+
+GitHub Pages URL: [https://honglam1292.github.io/Aepsy/](https://honglam1292.github.io/Aepsy/)
+
+
 ## Getting Started
 
 Use Node.js `^20.19.0` or `>=22.12.0`, then run:

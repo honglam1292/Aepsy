@@ -1,6 +1,6 @@
 import { ApolloProvider } from "@apollo/client/react";
 import type { ReactElement } from "react";
-import { BrowserRouter } from "react-router";
+import { HashRouter } from "react-router";
 
 import { IntakePersistenceProvider } from "../features/intake/application/IntakePersistenceProvider";
 import { IntakeProvider } from "../features/intake/application/IntakeProvider";
@@ -54,7 +54,7 @@ export function App({
   return (
     <AppErrorBoundary>
       <ApolloProvider client={apolloClient}>
-        <BrowserRouter>
+        <HashRouter>
           <IntakeProvider>
             <IntakePersistenceProvider
               audioRepository={audioRepository}
@@ -70,7 +70,7 @@ export function App({
               </RecordingProvider>
             </IntakePersistenceProvider>
           </IntakeProvider>
-        </BrowserRouter>
+        </HashRouter>
       </ApolloProvider>
     </AppErrorBoundary>
   );
