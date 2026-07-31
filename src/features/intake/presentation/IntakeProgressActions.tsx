@@ -10,6 +10,7 @@ import { useNavigate } from "react-router";
 import { useRecording } from "../../recording/application/useRecording";
 import { useIntakePersistence } from "../application/useIntakePersistence";
 import type { PersistenceNotice } from "../application/IntakePersistenceContext";
+import { isActiveRecordingState } from "../domain/recordingState";
 
 const quietButtonClassName =
   "inline-flex min-h-10 items-center justify-center rounded-full border border-primary-300 bg-white px-4 py-2 text-sm font-semibold text-primary-600 outline-offset-4 transition-colors hover:bg-primary-100 focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:text-grey-400";
@@ -49,18 +50,18 @@ export function PersistenceStatus(): ReactElement | null {
     return null;
   }
 
+  const didCleanupFail = persistence.notice === "clearIncomplete";
+
   return (
     <aside
-      aria-live={
-        persistence.notice === "clearIncomplete" ? "assertive" : "polite"
-      }
+      aria-live={didCleanupFail ? "assertive" : "polite"}
       className="mt-5 flex flex-col gap-3 rounded-2xl border border-primary-200 bg-white px-5 py-4 text-sm leading-6 text-grey-500 sm:flex-row sm:items-center sm:justify-between"
       ref={statusRef}
-      role={persistence.notice === "clearIncomplete" ? "alert" : "status"}
+      role={didCleanupFail ? "alert" : "status"}
       tabIndex={-1}
     >
       <p>{getNoticeMessage(persistence.notice)}</p>
-      {persistence.notice === "clearIncomplete" ? (
+      {didCleanupFail ? (
         <button
           className={quietButtonClassName}
           disabled={recording.isClearingProgress}
@@ -179,10 +180,7 @@ export function StartOverControl(): ReactElement | null {
     }, 0);
   };
 
-  const isActiveRecording =
-    recording.lifecycle.status === "requestingPermission" ||
-    recording.lifecycle.status === "recording" ||
-    recording.lifecycle.status === "stopping";
+  const isActiveRecording = isActiveRecordingState(recording.lifecycle);
 
   return (
     <>

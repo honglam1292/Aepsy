@@ -7,6 +7,7 @@ import { useNavigate } from "react-router";
 
 import type {
   RecordingFailureReason,
+  RecordingInterruptionReason,
   RecordingState,
 } from "../../intake/domain/intakeTypes";
 import type { RecordingController } from "../application/RecordingContext";
@@ -23,6 +24,20 @@ interface RecordAction {
   readonly isDisabled: boolean;
   readonly intent: "start" | "stop";
 }
+
+const playbackStatuses: readonly RecordingState["status"][] = [
+  "recorded",
+  "interrupted",
+  "unsupported",
+  "error",
+];
+
+const recordAgainInterruptionReasons:
+  readonly RecordingInterruptionReason[] = [
+    "browserReload",
+    "storedAudioMissing",
+    "storedAudioUnavailable",
+  ];
 
 const primaryButtonClassName =
   "inline-flex min-h-12 w-full items-center justify-center rounded-full bg-primary-600 px-6 py-3 font-semibold text-white outline-offset-4 transition-colors hover:bg-primary-500 focus-visible:outline-2 focus-visible:outline-focus disabled:cursor-not-allowed disabled:bg-grey-300 disabled:text-grey-500 sm:w-auto";
@@ -177,9 +192,7 @@ function getRecordAction(lifecycle: RecordingState): RecordAction | null {
     case "interrupted":
       return {
         label:
-          lifecycle.reason === "browserReload" ||
-          lifecycle.reason === "storedAudioMissing" ||
-          lifecycle.reason === "storedAudioUnavailable"
+          recordAgainInterruptionReasons.includes(lifecycle.reason)
             ? "Record again"
             : "Start again",
         isDisabled: false,
@@ -214,12 +227,7 @@ function canShowPlayback(
     return false;
   }
 
-  return (
-    lifecycle.status === "recorded" ||
-    lifecycle.status === "interrupted" ||
-    lifecycle.status === "unsupported" ||
-    lifecycle.status === "error"
-  );
+  return playbackStatuses.includes(lifecycle.status);
 }
 
 function RecordingPanel({

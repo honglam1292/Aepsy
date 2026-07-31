@@ -22,6 +22,7 @@ The implementation emphasises explicit workflow state, understandable interrupti
 - **localStorage** for small, serialisable workflow metadata.
 - **IndexedDB** for completed audio `Blob` data.
 - **Tailwind CSS v4** and application-owned theme tokens for responsive styling.
+- **Vitest**, **React Testing Library**, and **user-event** for focused domain and critical-flow tests in jsdom.
 
 ## Architecture
 
@@ -136,14 +137,16 @@ npm run dev
 | --- | --- |
 | `npm run dev` | Start the Vite development server. |
 | `npm run lint` | Run ESLint. |
+| `npm run test` | Run Vitest in watch mode. |
+| `npm run test:run` | Run the automated test suite once. |
 | `npm run build` | Run the TypeScript project build and create a production bundle. |
-| `npm run validate` | Run lint followed by the production build. |
+| `npm run validate` | Run lint, the automated test suite, and the production build. |
 
-## Manual Verification
+## Verification
 
-The repository does not include automated unit or integration test files or test scripts. Verification for this submission is manual. Browser smoke checks covered the primary recording-to-results path with a fake microphone, completed-progress restoration, Back/Forward navigation, provider re-fetch and Load More, Start over, and a narrow 320-pixel layout check.
+The focused automated suite covers workflow invalidation, recording controls and recovery, persistence and route guards, topic processing and selection, provider pagination, and the critical cross-step flow. It tests observable behaviour with mocked browser, storage, and GraphQL boundaries; it does not claim exhaustive coverage or browser certification.
 
-Native audio playback under a user gesture, the full failure matrix, screen-reader behaviour, and wider browser and device coverage remain manual follow-up checks.
+Native audio playback under a user gesture, real microphone and IndexedDB behaviour, the full browser failure matrix, screen-reader behaviour, and wider browser and device coverage remain manual checks.
 
 ## Trade-offs and Assumptions
 
@@ -151,12 +154,10 @@ Native audio playback under a user gesture, the full failure matrix, screen-read
 - Browser recording requires `MediaRecorder` and media-device support. Durable recovery additionally depends on localStorage and IndexedDB; the flow can continue in memory when storage fails.
 - Provider responses are re-fetched instead of persisted to avoid restoring stale API data.
 - One-based GraphQL pagination reflects the current development API behaviour and is isolated behind a named starting-page constant.
-- Automated tests are not included in the final repository; automated coverage is listed below as future work.
 - Real transcription, diagnosis, provider details outside the query, and non-essential audio visualisation are outside the assignment scope.
 
 ## Improvements with More Time
 
-- Add focused automated unit and integration coverage for reducers, adapters, persistence recovery, and observable workflow behaviour.
 - Add browser-level end-to-end tests with media fixtures and IndexedDB reloads.
 - Run a wider Safari, Firefox, Chromium, device, and assistive-technology verification matrix.
 - Generate GraphQL DTO types from the schema and supplied operation.

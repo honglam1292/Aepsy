@@ -115,19 +115,19 @@ export function mapProviderSearchResponse(
   pageNum: number,
 ): ProviderSearchPage {
   const providerConnection = response?.searchProviders?.providers;
-  if (
-    providerConnection === null ||
-    providerConnection === undefined ||
-    providerConnection.providers === null ||
-    providerConnection.providers === undefined
-  ) {
+  if (providerConnection === null || providerConnection === undefined) {
+    throw new Error("Provider results are unavailable.");
+  }
+
+  const providerDtos = providerConnection.providers;
+  if (providerDtos === null || providerDtos === undefined) {
     throw new Error("Provider results are unavailable.");
   }
 
   const items: ProviderSummary[] = [];
   const fingerprintOccurrences = new Map<string, number>();
 
-  for (const [providerIndex, providerDto] of providerConnection.providers.entries()) {
+  for (const [providerIndex, providerDto] of providerDtos.entries()) {
     if (providerDto !== null) {
       items.push(
         mapProvider(
@@ -140,7 +140,7 @@ export function mapProviderSearchResponse(
     }
   }
 
-  const totalSize = providerConnection?.totalSize;
+  const totalSize = providerConnection.totalSize;
 
   return {
     items,
@@ -150,6 +150,6 @@ export function mapProviderSearchResponse(
       totalSize >= 0
         ? totalSize
         : null,
-    canLoadMore: providerConnection?.canLoadMore === true,
+    canLoadMore: providerConnection.canLoadMore === true,
   };
 }

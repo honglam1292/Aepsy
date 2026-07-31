@@ -11,6 +11,11 @@ import {
   providerSearchReducer,
   unavailableProviderSearch,
 } from "../../providers/domain/providerSearchState";
+import { areTopicSelectionsEqual } from "../../topics/domain/topicSelection";
+import {
+  isActiveRecordingState,
+  type ActiveRecordingState,
+} from "./recordingState";
 
 export const initialIntakeWorkflowState: IntakeWorkflowState = {
   recording: { status: "idle" },
@@ -56,16 +61,8 @@ export function getCommittedRecording(
 function isMatchingActiveAttempt(
   recording: RecordingState,
   attemptId: string,
-): recording is Extract<
-  RecordingState,
-  { readonly status: "requestingPermission" | "recording" | "stopping" }
-> {
-  return (
-    (recording.status === "requestingPermission" ||
-      recording.status === "recording" ||
-      recording.status === "stopping") &&
-    recording.attemptId === attemptId
-  );
+): recording is ActiveRecordingState {
+  return isActiveRecordingState(recording) && recording.attemptId === attemptId;
 }
 
 function canApplyFailure(
@@ -131,18 +128,6 @@ function getCanonicalSelection(
   return [...selectedTopics];
 }
 
-function selectionsMatch(
-  currentSelection: readonly string[],
-  nextSelection: readonly string[],
-): boolean {
-  return (
-    currentSelection.length === nextSelection.length &&
-    currentSelection.every(
-      (topicValue, index) => topicValue === nextSelection[index],
-    )
-  );
-}
-
 function areValidUniqueSuggestions(
   suggestions: readonly TopicSuggestion[],
 ): boolean {
@@ -194,7 +179,7 @@ function hydrateWorkflow(
     topics.suggestions,
     topics.selectedTopicValues,
   );
-  const hydratedTopics = selectionsMatch(
+  const hydratedTopics = areTopicSelectionsEqual(
     topics.selectedTopicValues,
     selectedTopicValues,
   )
@@ -219,11 +204,7 @@ export function intakeWorkflowReducer(
 ): IntakeWorkflowState {
   switch (event.type) {
     case "recordingStartRequested": {
-      if (
-        state.recording.status === "requestingPermission" ||
-        state.recording.status === "recording" ||
-        state.recording.status === "stopping"
-      ) {
+      if (isActiveRecordingState(state.recording)) {
         return state;
       }
 
@@ -485,7 +466,7 @@ export function intakeWorkflowReducer(
       );
 
       if (
-        selectionsMatch(
+        areTopicSelectionsEqual(
           state.topics.selectedTopicValues,
           selectedTopicValues,
         )

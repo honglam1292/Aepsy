@@ -494,23 +494,20 @@ export function IntakePersistenceProvider({
             return;
           }
 
+          const didClearStoredProgress =
+            audioPruneResult.status === "pruned" &&
+            metadataClearResult.status === "cleared";
           lastMetadataSignatureRef.current = null;
           durableRecordingIdRef.current = null;
           persistenceModeRef.current =
-            audioPruneResult.status === "pruned" &&
-            metadataClearResult.status === "cleared"
-              ? "durable"
-              : "memoryOnly";
-          hasStorageCleanupDebtRef.current =
-            audioPruneResult.status !== "pruned" ||
-            metadataClearResult.status !== "cleared";
+            didClearStoredProgress ? "durable" : "memoryOnly";
+          hasStorageCleanupDebtRef.current = !didClearStoredProgress;
           dispatchHydratedWorkflow(
             initialIntakeWorkflowState.recording,
             initialIntakeWorkflowState.topics,
           );
           finishReady(
-            audioPruneResult.status === "pruned" &&
-              metadataClearResult.status === "cleared"
+            didClearStoredProgress
               ? "savedProgressReset"
               : "clearIncomplete",
           );
@@ -523,20 +520,18 @@ export function IntakePersistenceProvider({
             return;
           }
 
+          const didPruneAudio = audioPruneResult.status === "pruned";
           lastMetadataSignatureRef.current = null;
           durableRecordingIdRef.current = null;
           persistenceModeRef.current =
-            audioPruneResult.status === "pruned"
-              ? "durable"
-              : "memoryOnly";
-          hasStorageCleanupDebtRef.current =
-            audioPruneResult.status !== "pruned";
+            didPruneAudio ? "durable" : "memoryOnly";
+          hasStorageCleanupDebtRef.current = !didPruneAudio;
           dispatchHydratedWorkflow(
             initialIntakeWorkflowState.recording,
             initialIntakeWorkflowState.topics,
           );
           finishReady(
-            audioPruneResult.status === "pruned"
+            didPruneAudio
               ? null
               : audioPruneResult.status === "unsupported"
                 ? "storageUnavailable"
@@ -571,25 +566,22 @@ export function IntakePersistenceProvider({
                 previousRecording: null,
               };
 
+        const didClearStoredProgress =
+          audioPruneResult.status === "pruned" &&
+          metadataClearResult.status === "cleared";
         durableRecordingIdRef.current = null;
         lastMetadataSignatureRef.current =
           metadataClearResult.status === "cleared"
             ? null
             : JSON.stringify(metadata);
         persistenceModeRef.current =
-          audioPruneResult.status === "pruned" &&
-          metadataClearResult.status === "cleared"
-            ? "durable"
-            : "memoryOnly";
-        hasStorageCleanupDebtRef.current =
-          audioPruneResult.status !== "pruned" ||
-          metadataClearResult.status !== "cleared";
+          didClearStoredProgress ? "durable" : "memoryOnly";
+        hasStorageCleanupDebtRef.current = !didClearStoredProgress;
         lastValidStepRef.current = "record";
         setLastValidStep("record");
         dispatchHydratedWorkflow(recording, { status: "unavailable" });
         finishReady(
-          audioPruneResult.status === "pruned" &&
-            metadataClearResult.status === "cleared"
+          didClearStoredProgress
             ? null
             : "clearIncomplete",
         );
@@ -628,17 +620,15 @@ export function IntakePersistenceProvider({
             return;
           }
 
+          const didClearStoredProgress =
+            audioPruneResult.status === "pruned" &&
+            metadataClearResult.status === "cleared";
           lastMetadataSignatureRef.current = null;
           durableRecordingIdRef.current = null;
           unrestoredRecordingIdRef.current = metadata.recording.recordingId;
           persistenceModeRef.current =
-            audioPruneResult.status === "pruned" &&
-            metadataClearResult.status === "cleared"
-              ? "durable"
-              : "memoryOnly";
-          hasStorageCleanupDebtRef.current =
-            audioPruneResult.status !== "pruned" ||
-            metadataClearResult.status !== "cleared";
+            didClearStoredProgress ? "durable" : "memoryOnly";
+          hasStorageCleanupDebtRef.current = !didClearStoredProgress;
           dispatchHydratedWorkflow(
             {
               status: "interrupted",
@@ -651,8 +641,7 @@ export function IntakePersistenceProvider({
             { status: "unavailable" },
           );
           finishReady(
-            audioPruneResult.status === "pruned" &&
-              metadataClearResult.status === "cleared"
+            didClearStoredProgress
               ? null
               : "clearIncomplete",
           );
@@ -673,17 +662,15 @@ export function IntakePersistenceProvider({
           return;
         }
 
+        const didClearStoredProgress =
+          audioPruneResult.status === "pruned" &&
+          metadataClearResult.status === "cleared";
         lastMetadataSignatureRef.current = null;
         durableRecordingIdRef.current = null;
         unrestoredRecordingIdRef.current = metadata.recording.recordingId;
         persistenceModeRef.current =
-          audioPruneResult.status === "pruned" &&
-          metadataClearResult.status === "cleared"
-            ? "durable"
-            : "memoryOnly";
-        hasStorageCleanupDebtRef.current =
-          audioPruneResult.status !== "pruned" ||
-          metadataClearResult.status !== "cleared";
+          didClearStoredProgress ? "durable" : "memoryOnly";
+        hasStorageCleanupDebtRef.current = !didClearStoredProgress;
         dispatchHydratedWorkflow(
           {
             status: "interrupted",
@@ -696,8 +683,7 @@ export function IntakePersistenceProvider({
           { status: "unavailable" },
         );
         finishReady(
-          audioPruneResult.status === "pruned" &&
-            metadataClearResult.status === "cleared"
+          didClearStoredProgress
             ? null
             : "clearIncomplete",
         );
@@ -713,8 +699,8 @@ export function IntakePersistenceProvider({
         return;
       }
 
-      hasStorageCleanupDebtRef.current =
-        audioPruneResult.status !== "pruned";
+      const didPruneAudio = audioPruneResult.status === "pruned";
+      hasStorageCleanupDebtRef.current = !didPruneAudio;
 
       let restoredObjectUrl: string;
       try {
@@ -758,9 +744,7 @@ export function IntakePersistenceProvider({
         createRestoredTopics(metadata.topics),
       );
       finishReady(
-        audioPruneResult.status === "pruned"
-          ? null
-          : "storageCleanupFailed",
+        didPruneAudio ? null : "storageCleanupFailed",
       );
     }
 
@@ -1066,6 +1050,9 @@ export function IntakePersistenceProvider({
     const audioClearResult = await clearAudio(audioRepository);
     const metadataClearResult = clearMetadata(metadataRepository);
     const objectUrl = objectUrlRef.current;
+    const didClearStoredProgress =
+      audioClearResult.status === "cleared" &&
+      metadataClearResult.status === "cleared";
 
     objectUrlRef.current = null;
     loadedAudioRef.current = null;
@@ -1075,13 +1062,8 @@ export function IntakePersistenceProvider({
     lastValidStepRef.current = "record";
     pendingRecoveryRef.current = null;
     persistenceModeRef.current =
-      audioClearResult.status === "cleared" &&
-      metadataClearResult.status === "cleared"
-        ? "durable"
-        : "memoryOnly";
-    hasStorageCleanupDebtRef.current =
-      audioClearResult.status !== "cleared" ||
-      metadataClearResult.status !== "cleared";
+      didClearStoredProgress ? "durable" : "memoryOnly";
+    hasStorageCleanupDebtRef.current = !didClearStoredProgress;
     if (objectUrl !== null) {
       revokeObjectUrl(objectUrl);
     }
@@ -1091,8 +1073,7 @@ export function IntakePersistenceProvider({
       setLastValidStep("record");
       dispatch({ type: "progressCleared" });
       setNotice(
-        audioClearResult.status === "cleared" &&
-          metadataClearResult.status === "cleared"
+        didClearStoredProgress
           ? "progressCleared"
           : "clearIncomplete",
       );

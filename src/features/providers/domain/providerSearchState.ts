@@ -1,3 +1,4 @@
+import { areTopicSelectionsEqual } from "../../topics/domain/topicSelection";
 import type { ProviderSearchPage, ProviderSummary } from "./providerModels";
 
 interface ProviderSearchCriteria {
@@ -101,18 +102,6 @@ export function createProviderSearchState(
     : { status: "notStarted", selectedTopicValues };
 }
 
-function selectionsMatch(
-  currentSelection: readonly string[],
-  nextSelection: readonly string[],
-): boolean {
-  return (
-    currentSelection.length === nextSelection.length &&
-    currentSelection.every(
-      (topicValue, index) => topicValue === nextSelection[index],
-    )
-  );
-}
-
 export function mergeProviderSummaries(
   currentItems: readonly ProviderSummary[],
   incomingItems: readonly ProviderSummary[],
@@ -205,7 +194,7 @@ export function providerSearchReducer(
       if (
         (state.status !== "notStarted" && state.status !== "initialError") ||
         event.selectedTopicValues.length === 0 ||
-        !selectionsMatch(
+        !areTopicSelectionsEqual(
           state.selectedTopicValues,
           event.selectedTopicValues,
         ) ||

@@ -10,10 +10,10 @@ import {
 import { useIntakeWorkflow } from "../../intake/application/useIntakeWorkflow";
 import { useIntakePersistence } from "../../intake/application/useIntakePersistence";
 import { getCommittedRecording } from "../../intake/domain/intakeReducer";
+import { isActiveRecordingState } from "../../intake/domain/recordingState";
 import type {
   RecordingFailureReason,
   RecordingInterruptionReason,
-  RecordingState,
 } from "../../intake/domain/intakeTypes";
 import {
   RecordingContext,
@@ -91,14 +91,6 @@ function mapInterruption(
     default:
       return assertNever(reason);
   }
-}
-
-function isActiveLifecycle(status: RecordingState["status"]): boolean {
-  return (
-    status === "requestingPermission" ||
-    status === "recording" ||
-    status === "stopping"
-  );
 }
 
 function assertNever(unhandledValue: never): never {
@@ -442,7 +434,7 @@ export function RecordingProvider({
     }
   }, [state.recording.status, stopElapsedTimer]);
 
-  const hasActiveAttempt = isActiveLifecycle(state.recording.status);
+  const hasActiveAttempt = isActiveRecordingState(state.recording);
   const canContinue =
     getCommittedRecording(state.recording) !== null &&
     persistence.audioObjectUrl !== null &&

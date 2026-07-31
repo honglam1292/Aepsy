@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { useIntakeWorkflow } from "../../intake/application/useIntakeWorkflow";
+import { areTopicSelectionsEqual } from "../../topics/domain/topicSelection";
 import type { ProviderSearchState } from "../domain/providerSearchState";
 import type { ProviderSearchExecutor } from "./providerSearchExecutor";
 
@@ -26,18 +27,6 @@ export interface ProviderSearchController {
   retryInitialSearch(): void;
 }
 
-function selectionsMatch(
-  firstSelection: readonly string[],
-  secondSelection: readonly string[],
-): boolean {
-  return (
-    firstSelection.length === secondSelection.length &&
-    firstSelection.every(
-      (topicValue, index) => topicValue === secondSelection[index],
-    )
-  );
-}
-
 export function useProviderSearch({
   executor,
 }: UseProviderSearchOptions): ProviderSearchController {
@@ -55,7 +44,7 @@ export function useProviderSearch({
 
       const providerSearch = getState().providerSearch;
       if (
-        !selectionsMatch(
+        !areTopicSelectionsEqual(
           providerSearch.status === "unavailable"
             ? []
             : providerSearch.selectedTopicValues,
@@ -258,7 +247,7 @@ export function useProviderSearch({
 
     if (
       request !== null &&
-      !selectionsMatch(request.selectedTopicValues, currentSelection)
+      !areTopicSelectionsEqual(request.selectedTopicValues, currentSelection)
     ) {
       activeRequestRef.current = null;
       dispatchCancellation(request);

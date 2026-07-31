@@ -55,11 +55,15 @@ function isNonEmptyString(input: unknown): input is string {
 }
 
 function isNonNegativeSafeInteger(input: unknown): input is number {
-  return Number.isSafeInteger(input) && typeof input === "number" && input >= 0;
+  return (
+    typeof input === "number" && Number.isSafeInteger(input) && input >= 0
+  );
 }
 
 function isPositiveSafeInteger(input: unknown): input is number {
-  return Number.isSafeInteger(input) && typeof input === "number" && input > 0;
+  return (
+    typeof input === "number" && Number.isSafeInteger(input) && input > 0
+  );
 }
 
 function parseRecordingState(input: unknown): PersistedRecordingState | null {

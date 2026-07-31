@@ -24,7 +24,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["vite.config.ts"],
+    files: ["vite.config.ts", "vitest.config.ts"],
     languageOptions: {
       ecmaVersion: "latest",
       globals: globals.node,
