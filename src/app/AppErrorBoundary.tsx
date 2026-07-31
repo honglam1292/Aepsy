@@ -1,4 +1,4 @@
-import { Component } from "react";
+import { Component, createRef } from "react";
 import type { ReactNode } from "react";
 
 interface AppErrorBoundaryProps {
@@ -16,9 +16,15 @@ export class AppErrorBoundary extends Component<
   AppErrorBoundaryState
 > {
   public state: AppErrorBoundaryState = initialState;
+  private readonly fallbackHeadingRef = createRef<HTMLHeadingElement>();
 
   public static getDerivedStateFromError(): AppErrorBoundaryState {
     return { hasError: true };
+  }
+
+  public componentDidCatch(): void {
+    document.title = "Aepsy | Application error";
+    this.fallbackHeadingRef.current?.focus();
   }
 
   private readonly handleReload = (): void => {
@@ -29,11 +35,19 @@ export class AppErrorBoundary extends Component<
     if (this.state.hasError) {
       return (
         <main className="grid min-h-svh place-items-center bg-primary-100 px-5 py-12">
-          <section className="w-full max-w-xl rounded-3xl bg-white p-8 text-center shadow-sm">
+          <section
+            aria-labelledby="application-error-title"
+            className="w-full max-w-xl rounded-3xl bg-white p-8 text-center shadow-sm"
+          >
             <p className="text-sm font-semibold uppercase tracking-widest text-primary-500">
               Something went wrong
             </p>
-            <h1 className="mt-3 font-serif text-3xl text-primary-600">
+            <h1
+              className="mt-3 rounded-sm font-serif text-3xl text-primary-600 outline-offset-4 focus:outline-2 focus:outline-focus"
+              id="application-error-title"
+              ref={this.fallbackHeadingRef}
+              tabIndex={-1}
+            >
               We could not show this page
             </h1>
             <p className="mt-4 text-base leading-7 text-grey-500">

@@ -6,7 +6,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default defineConfig([
-  globalIgnores(["coverage/**", "dist/**", "materials/**", "node_modules/**"]),
+  globalIgnores(["dist/**", "materials/**", "node_modules/**"]),
   js.configs.recommended,
   ...tseslint.configs.recommended,
   reactHooks.configs.flat.recommended,
@@ -31,4 +31,3 @@ export default defineConfig([
     },
   },
 ]);
-

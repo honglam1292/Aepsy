@@ -61,11 +61,11 @@ export function ProgressIndicator(): ReactElement {
               </span>
             </>
           );
-          const stepClassName = `flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-2 text-center text-xs font-semibold outline-offset-4 transition-colors sm:min-h-14 sm:flex-row sm:justify-start sm:gap-3 sm:px-5 sm:py-3 sm:text-left sm:text-sm ${
+          const stepClassName = `flex min-h-16 flex-col items-center justify-center gap-1 rounded-2xl border px-1 py-2 text-center text-xs font-semibold outline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-focus sm:min-h-14 sm:flex-row sm:justify-start sm:gap-3 sm:px-5 sm:py-3 sm:text-left sm:text-sm ${
             isCurrentStep
               ? "border-primary-600 bg-primary-600 text-white"
               : isAvailable
-                ? "border-primary-300 bg-white text-primary-600 hover:bg-primary-200 focus-visible:outline-2 focus-visible:outline-focus"
+                ? "border-primary-300 bg-white text-primary-600 hover:bg-primary-200"
                 : "cursor-not-allowed border-grey-300 bg-grey-200 text-grey-500"
           }`;
 

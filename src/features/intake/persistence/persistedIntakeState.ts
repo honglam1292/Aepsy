@@ -101,7 +101,7 @@ function parseRecordingState(input: unknown): PersistedRecordingState | null {
 function parseTopicSuggestions(
   input: unknown,
 ): readonly TopicSuggestion[] | null {
-  if (!Array.isArray(input)) {
+  if (!Array.isArray(input) || input.length === 0) {
     return null;
   }
 
@@ -270,7 +270,9 @@ export function validatePersistedIntakeState(
     recording === null ||
     topics === null ||
     !hasConsistentProgress(recording, topics) ||
-    !isValidStepForProgress(input.currentStep, recording, topics)
+    !isValidStepForProgress(input.currentStep, recording, topics) ||
+    (input.unfinishedRecordingAttemptId !== null &&
+      (input.currentStep !== "record" || topics.status !== "unavailable"))
   ) {
     return { status: "invalid" };
   }

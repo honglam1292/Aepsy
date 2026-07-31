@@ -31,24 +31,27 @@ export function AppRoutes({
   const { pathname } = useLocation();
   const { state } = useIntakeWorkflow();
   const persistence = useIntakePersistence();
-  const shouldFocusAfterRecoveryRef = useRef(false);
+  const shouldFocusAfterHydrationRef = useRef(
+    persistence.hydration.status !== "ready",
+  );
   const previousPathnameRef = useRef(pathname);
 
   useEffect(() => {
-    if (persistence.hydration.status === "recoveryRequired") {
-      shouldFocusAfterRecoveryRef.current = true;
+    if (persistence.hydration.status !== "ready") {
+      shouldFocusAfterHydrationRef.current = true;
       return;
     }
 
-    if (
-      persistence.hydration.status === "ready" &&
-      shouldFocusAfterRecoveryRef.current
-    ) {
-      shouldFocusAfterRecoveryRef.current = false;
-      globalThis.setTimeout(() => {
-        document.getElementById("main-content")?.focus();
-      }, 0);
+    if (!shouldFocusAfterHydrationRef.current) {
+      return;
     }
+
+    shouldFocusAfterHydrationRef.current = false;
+    const focusTimeout = globalThis.setTimeout(() => {
+      document.getElementById("main-content")?.focus();
+    }, 0);
+
+    return () => globalThis.clearTimeout(focusTimeout);
   }, [persistence.hydration.status]);
 
   useEffect(() => {
@@ -58,9 +61,11 @@ export function AppRoutes({
       persistence.hydration.status === "ready" &&
       previousPathname !== pathname
     ) {
-      globalThis.setTimeout(() => {
+      const focusTimeout = globalThis.setTimeout(() => {
         document.getElementById("main-content")?.focus();
       }, 0);
+
+      return () => globalThis.clearTimeout(focusTimeout);
     }
   }, [pathname, persistence.hydration.status]);
 

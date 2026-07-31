@@ -114,14 +114,21 @@ export function StartOverControl(): ReactElement | null {
       return;
     }
 
+    let focusTimeout: ReturnType<typeof globalThis.setTimeout> | null = null;
     if (typeof dialog.showModal === "function") {
       dialog.showModal();
+      keepProgressRef.current?.focus();
     } else {
       setUsesFallbackDialog(true);
+      focusTimeout = globalThis.setTimeout(() => {
+        keepProgressRef.current?.focus();
+      }, 0);
     }
-    keepProgressRef.current?.focus();
 
     return () => {
+      if (focusTimeout !== null) {
+        globalThis.clearTimeout(focusTimeout);
+      }
       if (dialog.open && typeof dialog.close === "function") {
         dialog.close();
       }

@@ -163,7 +163,11 @@ export function TopicsPage({
         activeElement === document.body ||
         activeElement?.id === "main-content";
       if (canMoveFocus) {
-        globalThis.setTimeout(() => resultHeadingRef.current?.focus(), 0);
+        const focusTimeout = globalThis.setTimeout(
+          () => resultHeadingRef.current?.focus(),
+          0,
+        );
+        return () => globalThis.clearTimeout(focusTimeout);
       }
     }
   }, [visibleStatus]);
@@ -250,11 +254,19 @@ export function TopicsPage({
         {controller.topics.status === "processed" ? (
           <div className="text-right">
             {!controller.canContinue ? (
-              <p className="mb-2 text-sm text-grey-500">
+              <p
+                className="mb-2 text-sm text-grey-500"
+                id="topic-selection-requirement"
+              >
                 Select at least one topic to continue.
               </p>
             ) : null}
             <button
+              aria-describedby={
+                controller.canContinue
+                  ? undefined
+                  : "topic-selection-requirement"
+              }
               className={primaryButtonClassName}
               disabled={!controller.canContinue}
               onClick={() => navigate("/matches")}

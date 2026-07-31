@@ -54,8 +54,10 @@ function InitialLoadingPanel({
 }
 
 function InitialErrorPanel({
+  headingRef,
   retryInitialSearch,
 }: {
+  readonly headingRef: RefObject<HTMLHeadingElement | null>;
   retryInitialSearch(): void;
 }): ReactElement {
   return (
@@ -63,7 +65,11 @@ function InitialErrorPanel({
       className="mt-8 rounded-2xl border border-rose-300 bg-rose-100 p-5 sm:p-7"
       role="alert"
     >
-      <h2 className="font-serif text-2xl text-primary-600">
+      <h2
+        className="rounded-sm font-serif text-2xl text-primary-600 outline-offset-4 focus:outline-2 focus:outline-focus"
+        ref={headingRef}
+        tabIndex={-1}
+      >
         We couldn’t load your matches
       </h2>
       <p className="mt-2 max-w-2xl leading-7 text-grey-500">
@@ -101,6 +107,7 @@ function ProviderResults({
   endStatusRef,
   firstNewHeadingRef,
   firstNewItemIndex,
+  initialOutcomeHeadingRef,
   loadMore,
   loadMoreButtonRef,
   providerSearch,
@@ -108,6 +115,7 @@ function ProviderResults({
   readonly endStatusRef: RefObject<HTMLParagraphElement | null>;
   readonly firstNewHeadingRef: RefObject<HTMLHeadingElement | null>;
   readonly firstNewItemIndex: number | null;
+  readonly initialOutcomeHeadingRef: RefObject<HTMLHeadingElement | null>;
   readonly loadMoreButtonRef: RefObject<HTMLButtonElement | null>;
   readonly providerSearch: ProviderResultsState;
   loadMore(): void;
@@ -128,8 +136,10 @@ function ProviderResults({
           >
             <div>
               <h2
-                className="font-serif text-2xl text-primary-600"
+                className="rounded-sm font-serif text-2xl text-primary-600 outline-offset-4 focus:outline-2 focus:outline-focus"
                 id="provider-results-title"
+                ref={initialOutcomeHeadingRef}
+                tabIndex={-1}
               >
                 Psychologists matched to your topics
               </h2>
@@ -165,8 +175,10 @@ function ProviderResults({
           role="status"
         >
           <h2
-            className="font-serif text-2xl text-primary-600"
+            className="rounded-sm font-serif text-2xl text-primary-600 outline-offset-4 focus:outline-2 focus:outline-focus"
             id="provider-results-title"
+            ref={initialOutcomeHeadingRef}
+            tabIndex={-1}
           >
             No matches found this time
           </h2>
@@ -179,6 +191,7 @@ function ProviderResults({
       {didLoadMoreFail ? (
         <p
           className="mt-6 rounded-2xl border border-rose-300 bg-rose-100 p-4 leading-7 text-grey-500"
+          id="provider-load-more-error"
           role="alert"
         >
           We couldn’t load more psychologists. The matches already shown are
@@ -187,8 +200,11 @@ function ProviderResults({
       ) : null}
 
       {canLoadMore ? (
-        <div className="mt-7">
+        <div className="mt-7 flex justify-center">
           <button
+            aria-describedby={
+              didLoadMoreFail ? "provider-load-more-error" : undefined
+            }
             className={primaryButtonClassName}
             disabled={isLoadingMore}
             onClick={loadMore}
@@ -201,11 +217,6 @@ function ProviderResults({
                 ? "Retry loading more psychologists"
                 : "Load more psychologists"}
           </button>
-          {isLoadingMore ? (
-            <p aria-live="polite" className="mt-3 text-sm text-grey-500" role="status">
-              Loading more psychologists…
-            </p>
-          ) : null}
         </div>
       ) : hasResults ? (
         <p
@@ -244,10 +255,13 @@ export function MatchesPage({
 }: MatchesPageProps): ReactElement {
   const controller = useProviderSearch({ executor: providerSearchExecutor });
   const initialLoadingRef = useRef<HTMLDivElement>(null);
+  const initialErrorHeadingRef = useRef<HTMLHeadingElement>(null);
+  const initialOutcomeHeadingRef = useRef<HTMLHeadingElement>(null);
   const endStatusRef = useRef<HTMLParagraphElement>(null);
   const firstNewHeadingRef = useRef<HTMLHeadingElement>(null);
   const loadMoreButtonRef = useRef<HTMLButtonElement>(null);
   const shouldFocusInitialLoadingRef = useRef(false);
+  const shouldFocusInitialOutcomeRef = useRef(false);
   const shouldFocusAppendedResultsRef = useRef(false);
   const [firstNewItemIndex, setFirstNewItemIndex] = useState<number | null>(
     null,
@@ -256,6 +270,7 @@ export function MatchesPage({
 
   const handleInitialRetry = (): void => {
     shouldFocusInitialLoadingRef.current = true;
+    shouldFocusInitialOutcomeRef.current = true;
     controller.retryInitialSearch();
   };
 
@@ -271,7 +286,33 @@ export function MatchesPage({
       controller.providerSearch.status === "loadingInitial"
     ) {
       shouldFocusInitialLoadingRef.current = false;
-      globalThis.setTimeout(() => initialLoadingRef.current?.focus(), 0);
+      const focusTimeout = globalThis.setTimeout(
+        () => initialLoadingRef.current?.focus(),
+        0,
+      );
+      return () => globalThis.clearTimeout(focusTimeout);
+    }
+  }, [controller.providerSearch.status]);
+
+  useEffect(() => {
+    if (!shouldFocusInitialOutcomeRef.current) {
+      return;
+    }
+
+    if (controller.providerSearch.status === "initialError") {
+      shouldFocusInitialOutcomeRef.current = false;
+      const focusTimeout = globalThis.setTimeout(() => {
+        initialErrorHeadingRef.current?.focus();
+      }, 0);
+      return () => globalThis.clearTimeout(focusTimeout);
+    }
+
+    if (controller.providerSearch.status === "ready") {
+      shouldFocusInitialOutcomeRef.current = false;
+      const focusTimeout = globalThis.setTimeout(() => {
+        initialOutcomeHeadingRef.current?.focus();
+      }, 0);
+      return () => globalThis.clearTimeout(focusTimeout);
     }
   }, [controller.providerSearch.status]);
 
@@ -301,12 +342,19 @@ export function MatchesPage({
       firstNewItemIndex !== null &&
       controller.providerSearch.items.length > firstNewItemIndex
     ) {
-      globalThis.setTimeout(() => firstNewHeadingRef.current?.focus(), 0);
-      return;
+      const focusTimeout = globalThis.setTimeout(
+        () => firstNewHeadingRef.current?.focus(),
+        0,
+      );
+      return () => globalThis.clearTimeout(focusTimeout);
     }
 
     if (controller.providerSearch.nextPageNumber === null) {
-      globalThis.setTimeout(() => endStatusRef.current?.focus(), 0);
+      const focusTimeout = globalThis.setTimeout(
+        () => endStatusRef.current?.focus(),
+        0,
+      );
+      return () => globalThis.clearTimeout(focusTimeout);
     }
   }, [controller.providerSearch, firstNewItemIndex]);
 
@@ -319,7 +367,10 @@ export function MatchesPage({
       break;
     case "initialError":
       searchContent = (
-        <InitialErrorPanel retryInitialSearch={handleInitialRetry} />
+        <InitialErrorPanel
+          headingRef={initialErrorHeadingRef}
+          retryInitialSearch={handleInitialRetry}
+        />
       );
       break;
     case "ready":
@@ -330,6 +381,7 @@ export function MatchesPage({
           endStatusRef={endStatusRef}
           firstNewHeadingRef={firstNewHeadingRef}
           firstNewItemIndex={firstNewItemIndex}
+          initialOutcomeHeadingRef={initialOutcomeHeadingRef}
           loadMore={handleLoadMore}
           loadMoreButtonRef={loadMoreButtonRef}
           providerSearch={controller.providerSearch}

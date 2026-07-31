@@ -421,7 +421,6 @@ export function IntakePersistenceProvider({
 
       const objectUrl = objectUrlRef.current;
       if (objectUrl !== null) {
-        objectUrlRef.current = null;
         revokeObjectUrl(objectUrl);
       }
     };
@@ -432,6 +431,13 @@ export function IntakePersistenceProvider({
     operationGenerationRef.current = generation;
     pendingRecoveryRef.current = null;
     loadedAudioRef.current = null;
+
+    const previousObjectUrl = objectUrlRef.current;
+    if (previousObjectUrl !== null) {
+      objectUrlRef.current = null;
+      setAudioObjectUrl(null);
+      revokeObjectUrl(previousObjectUrl);
+    }
 
     const isCurrentHydration = (): boolean =>
       isMountedRef.current && operationGenerationRef.current === generation;

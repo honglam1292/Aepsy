@@ -55,6 +55,7 @@ export function IntakeHydrationPage(): ReactElement {
   if (persistence.hydration.status === "hydrating") {
     return (
       <main className="grid min-h-svh place-items-center bg-primary-100 px-5">
+        <title>Aepsy | Restoring your progress</title>
         <div
           aria-live="polite"
           className="w-[calc(100vw-2.5rem)] max-w-lg rounded-3xl bg-white p-8 text-center shadow-sm"
@@ -79,6 +80,7 @@ export function IntakeHydrationPage(): ReactElement {
 
   return (
     <main className="grid min-h-svh place-items-center bg-primary-100 px-5">
+      <title>Aepsy | Restore saved progress</title>
       <section
         aria-labelledby="recovery-title"
         className="w-[calc(100vw-2.5rem)] max-w-xl rounded-3xl bg-white p-8 shadow-sm sm:p-10"
