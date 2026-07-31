@@ -10,6 +10,10 @@ export interface CompletedRecording {
   readonly durationMs: number;
 }
 
+export type TopicProcessingFailureReason =
+  | "audioUnavailable"
+  | "processingFailed";
+
 export type RecordingFailureReason =
   | "permissionDenied"
   | "microphoneNotFound"
@@ -68,6 +72,22 @@ export type RecordingState =
 
 export type TopicsState =
   | { readonly status: "unavailable" }
+  | {
+      readonly status: "processing";
+      readonly sourceRecordingId: string;
+      readonly requestId: string;
+    }
+  | {
+      readonly status: "empty";
+      readonly sourceRecordingId: string;
+      readonly requestId: string;
+    }
+  | {
+      readonly status: "error";
+      readonly sourceRecordingId: string;
+      readonly requestId: string;
+      readonly reason: TopicProcessingFailureReason;
+    }
   | {
       readonly status: "processed";
       readonly sourceRecordingId: string;
@@ -131,9 +151,31 @@ export type IntakeWorkflowEvent =
       readonly attemptId: string;
     }
   | {
+      readonly type: "topicProcessingStarted";
+      readonly sourceRecordingId: string;
+      readonly requestId: string;
+    }
+  | {
       readonly type: "topicsProcessed";
       readonly sourceRecordingId: string;
+      readonly requestId: string;
       readonly suggestions: readonly TopicSuggestion[];
+    }
+  | {
+      readonly type: "topicProcessingEmpty";
+      readonly sourceRecordingId: string;
+      readonly requestId: string;
+    }
+  | {
+      readonly type: "topicProcessingFailed";
+      readonly sourceRecordingId: string;
+      readonly requestId: string;
+      readonly reason: TopicProcessingFailureReason;
+    }
+  | {
+      readonly type: "topicProcessingCancelled";
+      readonly sourceRecordingId: string;
+      readonly requestId: string;
     }
   | {
       readonly type: "topicSelectionChanged";

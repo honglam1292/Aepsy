@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactElement } from "react";
-import { Navigate, Route, Routes } from "react-router";
+import { Navigate, Route, Routes, useLocation } from "react-router";
 
 import { useIntakePersistence } from "../features/intake/application/useIntakePersistence";
 import { useIntakeWorkflow } from "../features/intake/application/useIntakeWorkflow";
@@ -11,13 +11,25 @@ import { IntakeHydrationPage } from "../features/intake/presentation/IntakeHydra
 import { MatchesPage } from "../features/providers/presentation/MatchesPage";
 import { RecordPage } from "../features/recording/presentation/RecordPage";
 import { TopicsPage } from "../features/topics/presentation/TopicsPage";
+import type { AudioTranscriptionProcessor } from "../features/topics/application/useAudioTranscriber";
+import type { AudioBufferReader } from "../features/topics/infrastructure/browserAudioBufferAdapter";
 import { AppShell } from "./layout/AppShell";
 import { NotFoundPage } from "./NotFoundPage";
 
-export function AppRoutes(): ReactElement {
+interface AppRoutesProps {
+  readonly topicAudioBufferReader: AudioBufferReader;
+  readonly topicAudioProcessor: AudioTranscriptionProcessor;
+}
+
+export function AppRoutes({
+  topicAudioBufferReader,
+  topicAudioProcessor,
+}: AppRoutesProps): ReactElement {
+  const { pathname } = useLocation();
   const { state } = useIntakeWorkflow();
   const persistence = useIntakePersistence();
   const shouldFocusAfterRecoveryRef = useRef(false);
+  const previousPathnameRef = useRef(pathname);
 
   useEffect(() => {
     if (persistence.hydration.status === "recoveryRequired") {
@@ -35,6 +47,19 @@ export function AppRoutes(): ReactElement {
       }, 0);
     }
   }, [persistence.hydration.status]);
+
+  useEffect(() => {
+    const previousPathname = previousPathnameRef.current;
+    previousPathnameRef.current = pathname;
+    if (
+      persistence.hydration.status === "ready" &&
+      previousPathname !== pathname
+    ) {
+      globalThis.setTimeout(() => {
+        document.getElementById("main-content")?.focus();
+      }, 0);
+    }
+  }, [pathname, persistence.hydration.status]);
 
   if (persistence.hydration.status !== "ready") {
     return <IntakeHydrationPage />;
@@ -63,7 +88,13 @@ export function AppRoutes(): ReactElement {
         />
         <Route element={<RecordPage />} path="/record" />
         <Route
-          element={guardStep("topics", <TopicsPage />)}
+          element={guardStep(
+            "topics",
+            <TopicsPage
+              audioBufferReader={topicAudioBufferReader}
+              audioProcessor={topicAudioProcessor}
+            />,
+          )}
           path="/topics"
         />
         <Route

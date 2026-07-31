@@ -27,6 +27,7 @@ import {
   type IntakeStep,
 } from "../domain/intakeProgress";
 import type {
+  CompletedRecording,
   IntakeWorkflowEvent,
   IntakeWorkflowState,
   RecordingState,
@@ -40,6 +41,7 @@ import type {
 import { PERSISTED_INTAKE_STATE_VERSION } from "../persistence/persistedIntakeState";
 import {
   IntakePersistenceContext,
+  type CompletedRecordingAudioResult,
   type CompletedRecordingCommit,
   type CompletedRecordingCommitResult,
   type IntakeHydrationState,
@@ -67,6 +69,11 @@ interface ActiveCommitOperation {
   readonly generation: number;
   readonly finished: Promise<void>;
   finish(): void;
+}
+
+interface LoadedRecordingAudio {
+  readonly recordingId: string;
+  readonly audio: Blob;
 }
 
 type PendingHydrationRecovery =
@@ -207,6 +214,17 @@ function createCompletedRecording(
     mimeType: persistedRecording.mimeType,
     byteSize: persistedRecording.byteSize,
   };
+}
+
+function recordingMatchesAudio(
+  recording: CompletedRecording,
+  audio: Blob,
+): boolean {
+  return (
+    audio.size > 0 &&
+    audio.size === recording.byteSize &&
+    audio.type.trim().toLowerCase() === recording.mimeType.trim().toLowerCase()
+  );
 }
 
 function createRestoredTopics(
@@ -356,6 +374,7 @@ export function IntakePersistenceProvider({
   const [notice, setNotice] = useState<PersistenceNotice | null>(null);
   const [isClearingProgress, setIsClearingProgress] = useState(false);
   const objectUrlRef = useRef<string | null>(null);
+  const loadedAudioRef = useRef<LoadedRecordingAudio | null>(null);
   const durableRecordingIdRef = useRef<string | null>(null);
   const unrestoredRecordingIdRef = useRef<string | null>(null);
   const lastValidStepRef = useRef<IntakeStep>("record");
@@ -398,6 +417,7 @@ export function IntakePersistenceProvider({
     return () => {
       isMountedRef.current = false;
       operationGenerationRef.current += 1;
+      loadedAudioRef.current = null;
 
       const objectUrl = objectUrlRef.current;
       if (objectUrl !== null) {
@@ -411,6 +431,7 @@ export function IntakePersistenceProvider({
     const generation = operationGenerationRef.current + 1;
     operationGenerationRef.current = generation;
     pendingRecoveryRef.current = null;
+    loadedAudioRef.current = null;
 
     const isCurrentHydration = (): boolean =>
       isMountedRef.current && operationGenerationRef.current === generation;
@@ -637,12 +658,8 @@ export function IntakePersistenceProvider({
           return assertNever(audioResult);
       }
 
-      if (
-        audioResult.audio.size === 0 ||
-        audioResult.audio.size !== metadata.recording.byteSize ||
-        audioResult.audio.type.trim().toLowerCase() !==
-          metadata.recording.mimeType.trim().toLowerCase()
-      ) {
+      const completedRecording = createCompletedRecording(metadata.recording);
+      if (!recordingMatchesAudio(completedRecording, audioResult.audio)) {
         const audioPruneResult = await pruneAudio(audioRepository, null);
         const metadataClearResult = clearMetadata(metadataRepository);
 
@@ -711,7 +728,6 @@ export function IntakePersistenceProvider({
         return;
       }
 
-      const completedRecording = createCompletedRecording(metadata.recording);
       const restoredRecording: RecordingState =
         metadata.unfinishedRecordingAttemptId === null
           ? { status: "recorded", recording: completedRecording }
@@ -723,6 +739,10 @@ export function IntakePersistenceProvider({
             };
 
       objectUrlRef.current = restoredObjectUrl;
+      loadedAudioRef.current = {
+        recordingId: completedRecording.recordingId,
+        audio: audioResult.audio,
+      };
       durableRecordingIdRef.current = completedRecording.recordingId;
       lastValidStepRef.current = metadata.currentStep;
       setAudioObjectUrl(restoredObjectUrl);
@@ -983,6 +1003,10 @@ export function IntakePersistenceProvider({
 
       const hadStorageCleanupDebt = hasStorageCleanupDebtRef.current;
       objectUrlRef.current = nextObjectUrl;
+      loadedAudioRef.current = {
+        recordingId: commit.recording.recordingId,
+        audio: commit.audioBlob,
+      };
       durableRecordingIdRef.current = isDurable
         ? commit.recording.recordingId
         : previousRecordingId;
@@ -1038,6 +1062,7 @@ export function IntakePersistenceProvider({
     const objectUrl = objectUrlRef.current;
 
     objectUrlRef.current = null;
+    loadedAudioRef.current = null;
     durableRecordingIdRef.current = null;
     unrestoredRecordingIdRef.current = null;
     lastMetadataSignatureRef.current = null;
@@ -1096,6 +1121,7 @@ export function IntakePersistenceProvider({
     persistenceModeRef.current = "memoryOnly";
     hasStorageCleanupDebtRef.current = pendingRecovery !== null;
     durableRecordingIdRef.current = null;
+    loadedAudioRef.current = null;
     lastValidStepRef.current = "record";
     setLastValidStep("record");
 
@@ -1126,6 +1152,44 @@ export function IntakePersistenceProvider({
     setHydration({ status: "ready" });
   };
 
+  const loadCompletedRecordingAudio = useCallback(
+    async (recordingId: string): Promise<CompletedRecordingAudioResult> => {
+      const recording = getCommittedRecording(getState().recording);
+      if (recording?.recordingId !== recordingId) {
+        return { status: "stale" };
+      }
+
+      const loadedAudio = loadedAudioRef.current;
+      if (
+        loadedAudio?.recordingId === recordingId &&
+        recordingMatchesAudio(recording, loadedAudio.audio)
+      ) {
+        return { status: "loaded", audio: loadedAudio.audio };
+      }
+
+      const result = await loadAudio(audioRepository, recordingId);
+      if (!isMountedRef.current) {
+        return { status: "stale" };
+      }
+
+      const currentRecording = getCommittedRecording(getState().recording);
+      if (currentRecording?.recordingId !== recordingId) {
+        return { status: "stale" };
+      }
+
+      if (
+        result.status !== "loaded" ||
+        !recordingMatchesAudio(currentRecording, result.audio)
+      ) {
+        return { status: "unavailable" };
+      }
+
+      loadedAudioRef.current = { recordingId, audio: result.audio };
+      return { status: "loaded", audio: result.audio };
+    },
+    [audioRepository, getState],
+  );
+
   return (
     <IntakePersistenceContext.Provider
       value={{
@@ -1135,6 +1199,7 @@ export function IntakePersistenceProvider({
         notice,
         isClearingProgress,
         completeRecording,
+        loadCompletedRecordingAudio,
         clearProgress,
         retryHydration,
         continueWithoutRestoring,

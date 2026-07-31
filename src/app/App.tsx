@@ -15,6 +15,14 @@ import type { RecordingAudioRepository } from "../features/recording/application
 import { browserAudioObjectUrlAdapter } from "../features/recording/infrastructure/browserAudioObjectUrlAdapter";
 import { browserRecordingAdapter } from "../features/recording/infrastructure/browserRecordingAdapter";
 import { indexedDbRecordingAudioRepository } from "../features/recording/infrastructure/indexedDbRecordingAudioRepository";
+import {
+  suppliedAudioTranscriptionProcessor,
+  type AudioTranscriptionProcessor,
+} from "../features/topics/application/useAudioTranscriber";
+import {
+  browserAudioBufferAdapter,
+  type AudioBufferReader,
+} from "../features/topics/infrastructure/browserAudioBufferAdapter";
 import { apolloClient } from "./apolloClient";
 import { AppErrorBoundary } from "./AppErrorBoundary";
 import { AppRoutes } from "./AppRoutes";
@@ -24,6 +32,8 @@ interface AppProps {
   readonly metadataRepository?: IntakeMetadataRepository;
   readonly objectUrlAdapter?: AudioObjectUrlAdapter;
   readonly recordingAdapter?: RecordingAdapter;
+  readonly topicAudioBufferReader?: AudioBufferReader;
+  readonly topicAudioProcessor?: AudioTranscriptionProcessor;
 }
 
 export function App({
@@ -31,6 +41,8 @@ export function App({
   metadataRepository = localStorageIntakeMetadataRepository,
   objectUrlAdapter = browserAudioObjectUrlAdapter,
   recordingAdapter = browserRecordingAdapter,
+  topicAudioBufferReader = browserAudioBufferAdapter,
+  topicAudioProcessor = suppliedAudioTranscriptionProcessor,
 }: AppProps = {}): ReactElement {
   return (
     <AppErrorBoundary>
@@ -43,7 +55,10 @@ export function App({
               objectUrlAdapter={objectUrlAdapter}
             >
               <RecordingProvider adapter={recordingAdapter}>
-                <AppRoutes />
+                <AppRoutes
+                  topicAudioBufferReader={topicAudioBufferReader}
+                  topicAudioProcessor={topicAudioProcessor}
+                />
               </RecordingProvider>
             </IntakePersistenceProvider>
           </IntakeProvider>

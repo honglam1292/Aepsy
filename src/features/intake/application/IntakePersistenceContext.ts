@@ -36,6 +36,11 @@ export type CompletedRecordingCommitResult =
   | "resourceError"
   | "stale";
 
+export type CompletedRecordingAudioResult =
+  | { readonly status: "loaded"; readonly audio: Blob }
+  | { readonly status: "unavailable" }
+  | { readonly status: "stale" };
+
 export interface IntakePersistenceController {
   readonly hydration: IntakeHydrationState;
   readonly audioObjectUrl: string | null;
@@ -45,6 +50,9 @@ export interface IntakePersistenceController {
   completeRecording(
     commit: CompletedRecordingCommit,
   ): Promise<CompletedRecordingCommitResult>;
+  loadCompletedRecordingAudio(
+    recordingId: string,
+  ): Promise<CompletedRecordingAudioResult>;
   clearProgress(): Promise<void>;
   retryHydration(): void;
   continueWithoutRestoring(): void;

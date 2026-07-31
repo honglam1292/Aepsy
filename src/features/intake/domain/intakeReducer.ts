@@ -143,6 +143,28 @@ function selectionsMatch(
   );
 }
 
+function areValidUniqueSuggestions(
+  suggestions: readonly TopicSuggestion[],
+): boolean {
+  if (suggestions.length === 0) {
+    return false;
+  }
+
+  const topicValues = new Set<string>();
+  for (const suggestion of suggestions) {
+    if (
+      suggestion.topicValue.trim().length === 0 ||
+      suggestion.label.trim().length === 0 ||
+      topicValues.has(suggestion.topicValue)
+    ) {
+      return false;
+    }
+    topicValues.add(suggestion.topicValue);
+  }
+
+  return true;
+}
+
 function deriveProviderSearch(
   selectedTopicValues: readonly string[],
 ): ProviderSearchState {
@@ -213,13 +235,23 @@ export function intakeWorkflowReducer(
         return state;
       }
 
+      const previousRecording = getCommittedRecording(state.recording);
+
       return {
         ...state,
         recording: {
           status: "requestingPermission",
           attemptId: event.attemptId,
-          previousRecording: getCommittedRecording(state.recording),
+          previousRecording,
         },
+        topics:
+          previousRecording === null
+            ? state.topics
+            : { status: "unavailable" },
+        providerSearch:
+          previousRecording === null
+            ? state.providerSearch
+            : unavailableProviderSearch,
       };
     }
 
@@ -349,10 +381,38 @@ export function intakeWorkflowReducer(
         },
       };
 
-    case "topicsProcessed":
+    case "topicProcessingStarted":
       if (
         getCommittedRecording(state.recording)?.recordingId !==
         event.sourceRecordingId
+      ) {
+        return state;
+      }
+
+      if (
+        state.topics.status === "processing" ||
+        (state.topics.status === "processed" &&
+          state.topics.sourceRecordingId === event.sourceRecordingId)
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        topics: {
+          status: "processing",
+          sourceRecordingId: event.sourceRecordingId,
+          requestId: event.requestId,
+        },
+        providerSearch: unavailableProviderSearch,
+      };
+
+    case "topicsProcessed":
+      if (
+        state.topics.status !== "processing" ||
+        state.topics.sourceRecordingId !== event.sourceRecordingId ||
+        state.topics.requestId !== event.requestId ||
+        !areValidUniqueSuggestions(event.suggestions)
       ) {
         return state;
       }
@@ -365,6 +425,60 @@ export function intakeWorkflowReducer(
           suggestions: event.suggestions,
           selectedTopicValues: [],
         },
+        providerSearch: unavailableProviderSearch,
+      };
+
+    case "topicProcessingEmpty":
+      if (
+        state.topics.status !== "processing" ||
+        state.topics.sourceRecordingId !== event.sourceRecordingId ||
+        state.topics.requestId !== event.requestId
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        topics: {
+          status: "empty",
+          sourceRecordingId: event.sourceRecordingId,
+          requestId: event.requestId,
+        },
+        providerSearch: unavailableProviderSearch,
+      };
+
+    case "topicProcessingFailed":
+      if (
+        state.topics.status !== "processing" ||
+        state.topics.sourceRecordingId !== event.sourceRecordingId ||
+        state.topics.requestId !== event.requestId
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        topics: {
+          status: "error",
+          sourceRecordingId: event.sourceRecordingId,
+          requestId: event.requestId,
+          reason: event.reason,
+        },
+        providerSearch: unavailableProviderSearch,
+      };
+
+    case "topicProcessingCancelled":
+      if (
+        state.topics.status !== "processing" ||
+        state.topics.sourceRecordingId !== event.sourceRecordingId ||
+        state.topics.requestId !== event.requestId
+      ) {
+        return state;
+      }
+
+      return {
+        ...state,
+        topics: { status: "unavailable" },
         providerSearch: unavailableProviderSearch,
       };
 
