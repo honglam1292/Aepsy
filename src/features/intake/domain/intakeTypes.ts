@@ -1,3 +1,10 @@
+import type {
+  ProviderSearchEvent,
+  ProviderSearchState,
+} from "../../providers/domain/providerSearchState";
+
+export type { ProviderSearchState } from "../../providers/domain/providerSearchState";
+
 export interface TopicSuggestion {
   readonly topicValue: string;
   readonly label: string;
@@ -95,13 +102,6 @@ export type TopicsState =
       readonly selectedTopicValues: readonly string[];
     };
 
-export type ProviderSearchState =
-  | { readonly status: "unavailable" }
-  | {
-      readonly status: "notStarted";
-      readonly selectedTopicValues: readonly string[];
-    };
-
 export interface IntakeWorkflowState {
   readonly recording: RecordingState;
   readonly topics: TopicsState;
@@ -186,4 +186,5 @@ export type IntakeWorkflowEvent =
       readonly recording: RecordingState;
       readonly topics: TopicsState;
     }
+  | ProviderSearchEvent
   | { readonly type: "progressCleared" };

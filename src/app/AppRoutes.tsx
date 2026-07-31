@@ -8,6 +8,7 @@ import {
   type IntakeStep,
 } from "../features/intake/domain/intakeProgress";
 import { IntakeHydrationPage } from "../features/intake/presentation/IntakeHydrationPage";
+import type { ProviderSearchExecutor } from "../features/providers/application/providerSearchExecutor";
 import { MatchesPage } from "../features/providers/presentation/MatchesPage";
 import { RecordPage } from "../features/recording/presentation/RecordPage";
 import { TopicsPage } from "../features/topics/presentation/TopicsPage";
@@ -17,11 +18,13 @@ import { AppShell } from "./layout/AppShell";
 import { NotFoundPage } from "./NotFoundPage";
 
 interface AppRoutesProps {
+  readonly providerSearchExecutor: ProviderSearchExecutor;
   readonly topicAudioBufferReader: AudioBufferReader;
   readonly topicAudioProcessor: AudioTranscriptionProcessor;
 }
 
 export function AppRoutes({
+  providerSearchExecutor,
   topicAudioBufferReader,
   topicAudioProcessor,
 }: AppRoutesProps): ReactElement {
@@ -98,7 +101,10 @@ export function AppRoutes({
           path="/topics"
         />
         <Route
-          element={guardStep("matches", <MatchesPage />)}
+          element={guardStep(
+            "matches",
+            <MatchesPage providerSearchExecutor={providerSearchExecutor} />,
+          )}
           path="/matches"
         />
         <Route element={<NotFoundPage />} path="*" />

@@ -2,15 +2,15 @@ import type {
   CompletedRecording,
   IntakeWorkflowEvent,
   IntakeWorkflowState,
-  ProviderSearchState,
   RecordingState,
   TopicsState,
   TopicSuggestion,
 } from "./intakeTypes";
-
-const unavailableProviderSearch: ProviderSearchState = {
-  status: "unavailable",
-};
+import {
+  createProviderSearchState,
+  providerSearchReducer,
+  unavailableProviderSearch,
+} from "../../providers/domain/providerSearchState";
 
 export const initialIntakeWorkflowState: IntakeWorkflowState = {
   recording: { status: "idle" },
@@ -165,14 +165,6 @@ function areValidUniqueSuggestions(
   return true;
 }
 
-function deriveProviderSearch(
-  selectedTopicValues: readonly string[],
-): ProviderSearchState {
-  return selectedTopicValues.length === 0
-    ? unavailableProviderSearch
-    : { status: "notStarted", selectedTopicValues };
-}
-
 function hydrateWorkflow(
   recording: RecordingState,
   topics: TopicsState,
@@ -212,7 +204,7 @@ function hydrateWorkflow(
   return {
     recording: hydratedRecording,
     topics: hydratedTopics,
-    providerSearch: deriveProviderSearch(selectedTopicValues),
+    providerSearch: createProviderSearchState(selectedTopicValues),
   };
 }
 
@@ -507,8 +499,25 @@ export function intakeWorkflowReducer(
           ...state.topics,
           selectedTopicValues,
         },
-        providerSearch: deriveProviderSearch(selectedTopicValues),
+        providerSearch: createProviderSearchState(selectedTopicValues),
       };
+    }
+
+    case "providerSearchStarted":
+    case "providerSearchSucceeded":
+    case "providerSearchFailed":
+    case "providerSearchCancelled":
+    case "providerPageLoadStarted":
+    case "providerPageLoaded":
+    case "providerPageLoadFailed":
+    case "providerPageLoadCancelled": {
+      const providerSearch = providerSearchReducer(
+        state.providerSearch,
+        event,
+      );
+      return providerSearch === state.providerSearch
+        ? state
+        : { ...state, providerSearch };
     }
 
     case "workflowHydrated":
